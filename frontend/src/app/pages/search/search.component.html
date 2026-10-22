@@ -98,6 +98,65 @@
   }
 </section>
 
+<nav class="content-nav" aria-label="Navegação dos resultados">
+  <div class="content-nav-inner">
+    <p class="content-nav-label">Resultados da análise</p>
+    <button
+      type="button"
+      class="info-btn"
+      (click)="openGlossary()"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="glossaryOpen"
+      aria-controls="glossary-dialog"
+      title="Glossário de termos"
+    >
+      <span class="info-btn-mark" aria-hidden="true">i</span>
+      <span class="sr-only">Abrir glossário de termos</span>
+    </button>
+  </div>
+</nav>
+
+@if (glossaryOpen) {
+  <div
+    class="modal-backdrop"
+    (click)="closeGlossary()"
+    role="presentation"
+  >
+    <div
+      id="glossary-dialog"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="glossary-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-head">
+        <h2 id="glossary-title">Glossário</h2>
+        <button
+          type="button"
+          class="modal-close"
+          (click)="closeGlossary()"
+          aria-label="Fechar glossário"
+        >
+          ×
+        </button>
+      </header>
+      <p class="modal-lede">
+        Termos usados na análise. Em inglês na interface, com tradução e um
+        significado curto.
+      </p>
+      <dl class="glossary-list">
+        @for (entry of glossaryEntries; track entry.term) {
+          <div class="glossary-item">
+            <dt>{{ entry.term }}</dt>
+            <dd>{{ entry.meaning }}</dd>
+          </div>
+        }
+      </dl>
+    </div>
+  </div>
+}
+
 @if (articleResult) {
   <section class="results">
     <h2>Resultado da URL (endereço)</h2>

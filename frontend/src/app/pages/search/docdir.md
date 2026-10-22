@@ -6,6 +6,6 @@ Tela principal: busca por tema+período ou por URL.
 
 | Arquivo | O que faz |
 | --- | --- |
-| `search.component.ts` | Estado do formulário e chamadas à API. |
-| `search.component.html` | Hero ④② + formulário + resultados (lista expansível). |
-| `search.component.css` | Paleta da estação, hero full-bleed e formulário. |
+| `search.component.ts` | Estado do formulário, API, glossário e modal. |
+| `search.component.html` | Hero ④② + formulário + barra sticky + resultados. |
+| `search.component.css` | Paleta da estação, hero, barra sticky e modal. |

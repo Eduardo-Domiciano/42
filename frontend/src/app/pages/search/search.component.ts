@@ -1,11 +1,16 @@
 import { CommonModule } from '@angular/common';
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { ArticleOut, TopicQueryOut } from '../../models/api.models';
 import { ApiService } from '../../services/api.service';
 
 type SearchMode = 'url' | 'topic';
+
+export interface GlossaryEntry {
+  term: string;
+  meaning: string;
+}
 
 @Component({
   selector: 'app-search',
@@ -31,11 +36,133 @@ export class SearchComponent {
   /** IDs de publicações abertas na lista do tema */
   expandedArticleIds = new Set<number>();
 
+  glossaryOpen = false;
+
+  /** Termos da UI com significado curto (EN + PT). */
+  readonly glossaryEntries: GlossaryEntry[] = [
+    {
+      term: 'Bias (viés / parcialidade)',
+      meaning:
+        'Tendência editorial da fonte (esquerda, centro, direita, institucional). Não julga se a matéria é falsa; só indica orientação habitual.',
+    },
+    {
+      term: 'Ownership (grupo dono)',
+      meaning:
+        'Quem controla o veículo (grupo de mídia, governo, partido). Ajuda a ver se várias “fontes” na verdade são o mesmo dono.',
+    },
+    {
+      term: 'Claims / F3 (afirmativas)',
+      meaning:
+        'Frases checáveis tiradas do texto (“X fez Y”). O F3 avalia cada afirmativa só com o que está na própria matéria.',
+    },
+    {
+      term: 'Tabela Claims (colunas)',
+      meaning:
+        'Cada linha é uma afirmativa. Claim = texto canônico. Veredito = conclusão F3 isolada. Conf. = confiança no veredito (0%–100%). Temporal / Geo / Partisan / Distortion / Support = notas 0,00–1,00. Método = como foi calculado (heurística, LLM, NLI…).',
+    },
+    {
+      term: 'Escala das notas (mín. e máx.)',
+      meaning:
+        'Notas numéricas vão de 0,00 (mínimo) a 1,00 (máximo). Confiança aparece em porcentagem: 0% a 100% (equivale a 0,00–1,00). Valores no meio são parciais — não são “nota escolar”, e sim intensidade do sinal.',
+    },
+    {
+      term: 'Temporal (âncora de tempo)',
+      meaning:
+        '0,00 = sem data/período útil. 1,00 = afirmativa bem ancorada no tempo (data no texto e/ou data de publicação do artigo). Quanto maior, mais clara a “quando”.',
+    },
+    {
+      term: 'Geo (âncora geográfica)',
+      meaning:
+        '0,00 = quase sem lugar/instituição. 1,00 = forte âncora de local ou entidade (ex.: Brasil, STF, Brasília). Ajuda a situar o “onde / quem institucional”.',
+    },
+    {
+      term: 'Partisan (sinal partidário)',
+      meaning:
+        '0,00 = pouco framing político explícito. 1,00 = muitos marcadores partidários/polêmica. Aqui, alto = mais risco de enquadramento político — não é “nota boa”.',
+    },
+    {
+      term: 'Distortion (distorção / clickbait)',
+      meaning:
+        '0,00 = título e corpo alinhados, tom sóbrio. 1,00 = sensacionalismo ou título pouco coerente com o corpo. Alto = alerta de distorção.',
+    },
+    {
+      term: 'Support (suporte interno)',
+      meaning:
+        '0,00 = quase sem evidência dentro do próprio artigo. 1,00 = números, citações, links ou trechos que sustentam a afirmativa no texto. Alto = mais lastro interno (ainda sem cruzar fontes externas).',
+    },
+    {
+      term: 'Conf. (confiança do veredito F3)',
+      meaning:
+        '0% = veredito muito incerto. 100% = método está bem seguro daquele veredito isolado. Não prova verdade absoluta; só mede certeza da avaliação F3.',
+    },
+    {
+      term: 'Cross-reference / F4 (cruzamento)',
+      meaning:
+        'Compara as afirmativas com outras matérias e fontes. O F4 monta o panorama: quem apoia, quem refuta e o nível de consenso.',
+    },
+    {
+      term: 'Consensus (consenso entre fontes)',
+      meaning:
+        'Quanto as fontes independentes convergem sobre a mesma afirmativa. Poucas fontes ou o mesmo dono = consenso frágil.',
+    },
+    {
+      term: 'Calibration (calibração F3 vs F4)',
+      meaning:
+        'Diferença entre o veredito isolado (só o artigo) e o consenso externo. Se divergem, a análise destaca o alerta.',
+    },
+    {
+      term: 'Stance (posição da evidência)',
+      meaning:
+        'Se outra matéria apoia (supports), refuta (refutes), só se relaciona (related) ou não fala do mesmo ponto (unrelated).',
+    },
+    {
+      term: 'Primary veto (veto de fonte oficial)',
+      meaning:
+        'Quando existe documento ou fonte primária/oficial no conjunto, o veredito fica mais cauteloso se ela contradisser o resto.',
+    },
+    {
+      term: 'Score (pontuação) e Tier (nível)',
+      meaning:
+        'Score resume confiança/qualidade heurística. Tier classifica a autoridade da fonte (primária, secundária, baixa…).',
+    },
+    {
+      term: 'Framing (enquadramento)',
+      meaning:
+        'Como a história é contada: o que é enfatizado, omitido ou dramatizado, independentemente dos fatos citados.',
+    },
+    {
+      term: 'Acervo (cache)',
+      meaning:
+        'Análise já gravada no banco e reutilizada. Evita baixar e recalcular o mesmo artigo se o conteúdo não mudou.',
+    },
+    {
+      term: 'Vereditos (Supported / Disputed / Insufficient)',
+      meaning:
+        'Supported: há suporte interno. Disputed: há tensão ou contestação. Insufficient: falta evidência checável no texto.',
+    },
+  ];
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    if (this.glossaryOpen) {
+      this.closeGlossary();
+    }
+  }
+
+  openGlossary(): void {
+    this.glossaryOpen = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closeGlossary(): void {
+    this.glossaryOpen = false;
+    document.body.style.overflow = '';
+  }
+
   setMode(mode: SearchMode): void {
     this.mode = mode;
     this.error = null;
   }
-
   isArticleExpanded(id: number): boolean {
     return this.expandedArticleIds.has(id);
   }
