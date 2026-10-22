@@ -1,0 +1,26 @@
+# IDE
+.cursor/
+
+# Cópias dos projetos originais (referência local; não versionar)
+_reference/
+
+# Python
+backend/.venv/
+backend/**/__pycache__/
+backend/**/*.pyc
+backend/.pytest_cache/
+backend/*.db
+backend/data/*.db
+
+# Node / Angular
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.sass-cache/
+
+# Env e OS
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log

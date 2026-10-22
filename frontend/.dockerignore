@@ -1,0 +1,10 @@
+node_modules
+dist
+.angular
+.git
+.gitignore
+README.md
+docdir.md
+**/*.md
+.env
+.env.*

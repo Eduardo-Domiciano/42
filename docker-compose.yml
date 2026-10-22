@@ -1,0 +1,38 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        INSTALL_NN: ${INSTALL_NN:-0}
+    container_name: veracidade-backend
+    environment:
+      DATABASE_URL: sqlite:////data/veracidade.db
+      CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://localhost:4200,http://127.0.0.1:4200"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      CLAIM_USE_LLM: ${CLAIM_USE_LLM:-true}
+      CLAIM_LLM_MAX_PER_TOPIC: ${CLAIM_LLM_MAX_PER_TOPIC:-3}
+      NN_ENABLED: ${NN_ENABLED:-true}
+      NN_NLI_ENABLED: ${NN_NLI_ENABLED:-true}
+      NN_EMBEDDINGS_ENABLED: ${NN_EMBEDDINGS_ENABLED:-true}
+      NN_CLICKBAIT_ENABLED: ${NN_CLICKBAIT_ENABLED:-true}
+    volumes:
+      - veracidade_data:/data
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: veracidade-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  veracidade_data:

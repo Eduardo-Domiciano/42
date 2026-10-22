@@ -1,0 +1,8 @@
+# Redes neurais locais (complemento). Instalar além de requirements.txt:
+#   pip install -r requirements-nn.txt
+# Torch CPU (menor). Para GPU, troque pelo wheel CUDA oficial.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.2.0
+transformers>=4.40.0
+sentence-transformers>=3.0.0
+numpy>=1.26.0

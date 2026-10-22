@@ -1,0 +1,218 @@
+# Catálogo de parcialidade editorial — veículos Brasil
+# Escala bias_score: -1.0 (esquerda) … 0.0 (centro/institucional) … +1.0 (direita)
+# Isto NÃO é veredito de verdade; serve para comparar framing e ownership.
+# Revisável. Ver docs/catalogo-bias.md
+
+version: "1.0.0"
+country: BR
+updated_at: "2026-10-20"
+methodology: |
+  Julgamento curado para contraste editorial no produto ④②.
+  Combina papel institucional (governo/estatística), grupo de mídia e
+  linha editorial pública tipicamente atribuída ao veículo.
+  Fontes oficiais usam label "institutional" (score 0) — podem ter agenda
+  de governo, mas não entram no eixo esquerda/direita da mídia.
+
+defaults:
+  unlisted:
+    bias_score: null
+    bias_label: unknown
+    ownership_name: null
+    note: "Fonte sem entrada no catálogo de bias v1."
+
+sources:
+  # --- Oficiais / institucionais ---
+  dou:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Imprensa Nacional / Governo Federal"
+    note: "Texto legal autenticado; framing institucional."
+  ibge:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "IBGE"
+    note: "Estatística oficial."
+  ipea:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Ipea"
+    note: "Pesquisa econômica aplicada do Estado."
+  bcb:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Banco Central do Brasil"
+    note: "Autoridade monetária."
+  tcu:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Tribunal de Contas da União"
+    note: "Controle externo; independência institucional relativa."
+  cgu:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "CGU"
+    note: "Controle interno e transparência."
+  anvisa:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Anvisa"
+    note: "Regulação sanitária."
+  inep:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Inep"
+    note: "Estatísticas e avaliações educacionais."
+  datasus:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Ministério da Saúde / DataSUS"
+    note: "Dados de saúde pública."
+  receita_federal:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Receita Federal"
+    note: "Normas e dados fiscais."
+  dados_abertos:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Governo Federal"
+    note: "Portal agregador de dados abertos."
+
+  # --- Mídia ---
+  agencia_brasil:
+    bias_score: 0.0
+    bias_label: center
+    ownership_name: "EBC (Empresa Brasil de Comunicação)"
+    note: "Agência pública; cobertura institucional; risco de alinhamento governamental."
+  uol_noticias:
+    bias_score: -0.1
+    bias_label: center
+    ownership_name: "Grupo Folha / UOL"
+    note: "Portal generalista de grande alcance."
+  folha:
+    bias_score: -0.2
+    bias_label: center_left
+    ownership_name: "Grupo Folha"
+    note: "Referência nacional; linha liberal/progressista em vários períodos."
+  g1:
+    bias_score: 0.0
+    bias_label: center
+    ownership_name: "Grupo Globo"
+    note: "Portal massivo; framing mainstream."
+  o_globo:
+    bias_score: 0.15
+    bias_label: center_right
+    ownership_name: "Grupo Globo"
+    note: "Mesmo grupo do g1; jornal tradicional."
+  valor_economico:
+    bias_score: 0.1
+    bias_label: center
+    ownership_name: "Grupo Globo"
+    note: "Foco econômico/financeiro."
+  estadao:
+    bias_score: 0.25
+    bias_label: center_right
+    ownership_name: "Grupo Estado"
+    note: "Linha tradicionalmente liberal-conservadora."
+  cartacapital:
+    bias_score: -0.65
+    bias_label: left
+    ownership_name: "Editora Confiança / CartaCapital"
+    note: "Forte linha progressista/opinião."
+  revista_oeste:
+    bias_score: 0.75
+    bias_label: right
+    ownership_name: "Revista Oeste"
+    note: "Linha conservadora explícita."
+  gazeta_do_povo:
+    bias_score: 0.55
+    bias_label: right
+    ownership_name: "Gazeta do Povo"
+    note: "Cobertura com forte viés conservador nas últimas décadas."
+  veja:
+    bias_score: 0.35
+    bias_label: center_right
+    ownership_name: "Grupo Abril"
+    note: "Revista nacional; histórico de alinhamentos variáveis, tipicamente centro-direita."
+  cnn_brasil:
+    bias_score: 0.1
+    bias_label: center
+    ownership_name: "CNN Brasil (licenciamento)"
+    note: "TV/notícias 24h; framing mainstream."
+  r7:
+    bias_score: 0.2
+    bias_label: center_right
+    ownership_name: "Grupo Record"
+    note: "Portal do Grupo Record."
+  bbc_brasil:
+    bias_score: -0.05
+    bias_label: center
+    ownership_name: "BBC"
+    note: "Serviço internacional em português; padrão BBC."
+  poder360:
+    bias_score: 0.05
+    bias_label: center
+    ownership_name: "Poder360"
+    note: "Política e dados; digital independente de grandes grupos de TV."
+  nexo_jornal:
+    bias_score: -0.15
+    bias_label: center_left
+    ownership_name: "Nexo Jornal"
+    note: "Jornalismo explicativo; independente."
+  infomoney:
+    bias_score: 0.2
+    bias_label: center_right
+    ownership_name: "Grupo XP"
+    note: "Finanças e investimentos."
+  correio_braziliense:
+    bias_score: 0.1
+    bias_label: center
+    ownership_name: "Diários Associados"
+    note: "Jornal de Brasília."
+  metropoles:
+    bias_score: 0.0
+    bias_label: center
+    ownership_name: "Metrópoles"
+    note: "Portal digital de Brasília."
+  intercept_brasil:
+    bias_score: -0.7
+    bias_label: left
+    ownership_name: "The Intercept"
+    note: "Investigativo com linha progressista."
+  band:
+    bias_score: 0.15
+    bias_label: center_right
+    ownership_name: "Grupo Bandeirantes"
+    note: "TV/rádio com presença digital."
+  terra:
+    bias_score: 0.05
+    bias_label: center
+    ownership_name: "Terra"
+    note: "Portal agregador de grande alcance."
+  sbt_news:
+    bias_score: 0.2
+    bias_label: center_right
+    ownership_name: "Grupo Silvio Santos / SBT"
+    note: "Portal do SBT."
+  conjur:
+    bias_score: 0.0
+    bias_label: center
+    ownership_name: "Consultor Jurídico"
+    note: "Especializado em Direito; menos eixo político-partidário."
+  jota:
+    bias_score: 0.0
+    bias_label: center
+    ownership_name: "JOTA"
+    note: "Jornalismo jurídico/regulatório."
+
+ownership_aliases:
+  globo.com: "Grupo Globo"
+  folha.uol.com.br: "Grupo Folha"
+  uol.com.br: "Grupo Folha / UOL"
+  ebc.com.br: "EBC"
+  abril.com.br: "Grupo Abril"
+  estadao.com.br: "Grupo Estado"
+  recordtv.com.br: "Grupo Record"
+  band.com.br: "Grupo Bandeirantes"
+  sbt.com.br: "Grupo Silvio Santos / SBT"
+  diariosassociados.com.br: "Diários Associados"

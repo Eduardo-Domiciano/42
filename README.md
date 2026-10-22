@@ -1,0 +1,106 @@
+# ④②
+
+App híbrido (Python + Angular) para coletar notícias brasileiras, guardar fonte/autor/conteúdo/data e devolver uma análise preliminar. Usa o catálogo de fontes do Frank Investigator (copiado) e mantém os projetos originais só como referência local em `_reference/` (ignorada pelo Git).
+
+## Estrutura
+
+- `backend/` — FastAPI + SQLite
+- `frontend/` — Angular (busca por URL ou tema + período)
+- `_reference/` — cópia local dos projetos originais (não versionada)
+- `docs/` — modelos de documentação
+- `docker-compose.yml` — sobe API + UI (Nginx)
+
+Os quatro projetos originais em `../` **não foram apagados**.
+
+## Docker (recomendado)
+
+```bash
+cd veracidade-noticias
+docker compose up --build
+```
+
+- App: `http://localhost:8080`
+- API docs (via proxy): `http://localhost:8080/docs`
+- Dados SQLite no volume `veracidade_data`
+
+Parar: `docker compose down`
+
+## Backend (local, sem Docker)
+
+```bash
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+API: `http://127.0.0.1:8000/docs`
+
+- `POST /api/ingest/url` — `{ "url": "https://..." }`
+- `POST /api/search/topic` — `{ "topic": "...", "date_from": "2026-10-01", "date_to": "2026-10-20" }`
+
+## Frontend (local, sem Docker)
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+Abra `http://localhost:4200` (API em `http://127.0.0.1:8000`).
+
+## Fase 2 (perfis)
+
+- Catálogo versionado: `backend/catalog/bias_br.yml` (metodologia em `docs/catalogo-bias.md`)
+- Classificação de tipo: artigo, opinião, editorial, documento oficial, comunicado, etc.
+- API: `GET /api/catalog/bias`
+
+## Fase 3 (claims)
+
+- Extrai afirmações checáveis e pontua: temporal, geográfica, partidária, distorção, suporte interno
+- Com `OPENROUTER_API_KEY` usa LLM; sem chave, usa heurísticas
+- Claims persistidos em `claims` / `claim_assessments`
+- `POST /api/articles/{id}/reanalyze` força nova avaliação
+
+```bash
+# opcional no .env ou no shell antes do compose
+export OPENROUTER_API_KEY=sk-or-...
+```
+
+## Fase 4 (cruzamento)
+
+- Busca evidências pares/oficiais por claim
+- Stance (apoia/refuta/relacionada) + consenso ponderado
+- Alerta de mesmo Ownership (grupo dono) e veto de fonte primária
+- Calibration (calibração) entre análise isolada (F3) e cruzamento (F4)
+- Detalhes: `docs/fase-4-cruzamento.md`
+
+## Redes neurais locais (complemento)
+
+Camada opcional (estilo fake-news-detector): **não substitui** heurísticas, catálogo YAML nem OpenRouter.
+
+| Sinal | Onde | Modelo padrão |
+| --- | --- | --- |
+| NLI (stance) | F4 `stance.py` | mDeBERTa XNLI multilingual |
+| Embeddings | ranking de pares F4 | paraphrase-multilingual-MiniLM |
+| Clickbait | funde em Distortion F3 | via embeddings título×corpo |
+
+```bash
+# local
+cd backend
+pip install -r requirements.txt
+pip install -r requirements-nn.txt   # torch + transformers (pesado)
+
+# Docker com NN na imagem
+INSTALL_NN=1 docker compose up --build
+```
+
+Sem os pacotes NN, o `/api/health` mostra `nn.packages_installed: false` e o pipeline segue só com heurística/LLM. Detalhes: `docs/fluxo-atual-e-redes.md`.
+
+## Limites do MVP
+
+- Stance usa heurística; NLI/LLM entram só se configurados e disponíveis.
+- Busca web depende do DuckDuckGo e pode falhar/limitar resultados.
+- Bias do catálogo é julgamento curado, não prova de verdade.
+- Não substitui checagem humana nem fact-checkers profissionais.

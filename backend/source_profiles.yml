@@ -1,0 +1,648 @@
+us:
+  govinfo:
+    name: "GovInfo"
+    homepage_url: "https://www.govinfo.gov/"
+    host_patterns:
+      - "govinfo.gov"
+      - "www.govinfo.gov"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.99
+    independence_group: "govinfo.gov"
+    audience_country: "US"
+    notes: "Authenticated federal documents from all three branches. Top-tier source for official legal text."
+  congress_gov:
+    name: "Congress.gov"
+    homepage_url: "https://www.congress.gov/"
+    host_patterns:
+      - "congress.gov"
+      - "www.congress.gov"
+    source_kind: "legislative_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.98
+    independence_group: "congress.gov"
+    audience_country: "US"
+    notes: "Official federal legislative information maintained by the Library of Congress."
+  federal_register:
+    name: "Federal Register"
+    homepage_url: "https://www.federalregister.gov/"
+    host_patterns:
+      - "federalregister.gov"
+      - "www.federalregister.gov"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "federalregister.gov"
+    audience_country: "US"
+    notes: "Discovery layer for regulations. Pair with govinfo for final authoritative copy."
+  federal_reserve:
+    name: "Federal Reserve Board"
+    homepage_url: "https://www.federalreserve.gov/"
+    host_patterns:
+      - "federalreserve.gov"
+      - "www.federalreserve.gov"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "federalreserve.gov"
+    audience_country: "US"
+    notes: "Primary source for monetary policy, interest rate, and banking claims."
+  fred:
+    name: "FRED"
+    homepage_url: "https://fred.stlouisfed.org/"
+    host_patterns:
+      - "fred.stlouisfed.org"
+      - "stlouisfed.org"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "stlouisfed.org"
+    audience_country: "US"
+    notes: "Macro and regional economic time series aggregated from government agencies."
+  bls:
+    name: "Bureau of Labor Statistics"
+    homepage_url: "https://www.bls.gov/"
+    host_patterns:
+      - "bls.gov"
+      - "www.bls.gov"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "bls.gov"
+    audience_country: "US"
+    notes: "Principal fact-finding agency for labor economics and statistics."
+  census:
+    name: "U.S. Census Bureau"
+    homepage_url: "https://www.census.gov/"
+    host_patterns:
+      - "census.gov"
+      - "www.census.gov"
+      - "data.census.gov"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "census.gov"
+    audience_country: "US"
+    notes: "Primary source for demographic, housing, household, and business survey claims."
+  sec_edgar:
+    name: "SEC EDGAR"
+    homepage_url: "https://www.sec.gov/cgi-bin/browse-edgar"
+    host_patterns:
+      - "sec.gov"
+      - "www.sec.gov"
+      - "efts.sec.gov"
+    source_kind: "company_filing"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.98
+    independence_group: "sec.gov"
+    audience_country: "US"
+    notes: "Primary system for company filings under federal securities laws."
+  us_courts:
+    name: "U.S. Courts"
+    homepage_url: "https://www.uscourts.gov/"
+    host_patterns:
+      - "uscourts.gov"
+      - "www.uscourts.gov"
+      - "pacer.gov"
+      - "www.pacer.gov"
+      - "courtlistener.com"
+      - "www.courtlistener.com"
+    source_kind: "court_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "uscourts.gov"
+    audience_country: "US"
+    notes: "Federal judiciary structure and case records. For specific cases prefer docket or order."
+  whitehouse:
+    name: "White House"
+    homepage_url: "https://www.whitehouse.gov/"
+    host_patterns:
+      - "whitehouse.gov"
+      - "www.whitehouse.gov"
+    source_kind: "government_record"
+    source_role: "official_position"
+    authority_tier: "secondary"
+    authority_score: 0.72
+    independence_group: "whitehouse.gov"
+    audience_country: "US"
+    notes: "Reflects sitting administration messaging. Good for official statements, not neutral truth. Confidence capped unless corroborated."
+  gao:
+    name: "GAO"
+    homepage_url: "https://www.gao.gov/"
+    host_patterns:
+      - "gao.gov"
+      - "www.gao.gov"
+    source_kind: "government_record"
+    source_role: "oversight"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "gao.gov"
+    audience_country: "US"
+    notes: "Independent non-partisan agency. Best for audits, implementation gaps, and program performance."
+  cbo:
+    name: "CBO"
+    homepage_url: "https://www.cbo.gov/"
+    host_patterns:
+      - "cbo.gov"
+      - "www.cbo.gov"
+    source_kind: "government_record"
+    source_role: "oversight"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "cbo.gov"
+    audience_country: "US"
+    notes: "Objective nonpartisan budget and fiscal analysis. Top-tier for budget and cost claims."
+  pubmed:
+    name: "PubMed"
+    homepage_url: "https://pubmed.ncbi.nlm.nih.gov/"
+    host_patterns:
+      - "pubmed.ncbi.nlm.nih.gov"
+      - "ncbi.nlm.nih.gov"
+    source_kind: "scientific_paper"
+    source_role: "research_discovery"
+    authority_tier: "primary"
+    authority_score: 0.93
+    independence_group: "nih.gov"
+    audience_country: "US"
+    notes: "Biomedical literature discovery and metadata. Read linked full text before scoring strongly."
+  arxiv:
+    name: "arXiv"
+    homepage_url: "https://arxiv.org/"
+    host_patterns:
+      - "arxiv.org"
+      - "www.arxiv.org"
+    source_kind: "scientific_paper"
+    source_role: "research_discovery"
+    authority_tier: "secondary"
+    authority_score: 0.73
+    independence_group: "arxiv.org"
+    audience_country: "US"
+    notes: "Preprint server. Never treat alone as settled evidence for high-stakes claims. Confidence capped unless corroborated."
+  nber:
+    name: "NBER"
+    homepage_url: "https://www.nber.org/"
+    host_patterns:
+      - "nber.org"
+      - "www.nber.org"
+    source_kind: "scientific_paper"
+    source_role: "research_discovery"
+    authority_tier: "secondary"
+    authority_score: 0.78
+    independence_group: "nber.org"
+    audience_country: "US"
+    notes: "Strong economics working papers. Below official statistical agencies for raw numbers."
+
+brazil:
+  dou:
+    name: "Diario Oficial da Uniao"
+    homepage_url: "https://www.in.gov.br/servicos/diario-oficial-da-uniao"
+    host_patterns:
+      - "in.gov.br"
+      - "www.in.gov.br"
+      - "imprensanacional.gov.br"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.99
+    independence_group: "in.gov.br"
+    audience_country: "BR"
+    notes: "Official federal gazette. Authenticated legal text for laws, decrees, portarias, and regulatory acts."
+  ibge:
+    name: "IBGE"
+    homepage_url: "https://www.ibge.gov.br/"
+    host_patterns:
+      - "ibge.gov.br"
+      - "www.ibge.gov.br"
+      - "sidra.ibge.gov.br"
+      - "mapas.ibge.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "ibge.gov.br"
+    audience_country: "BR"
+    notes: "Brazilian national statistics institute. Primary source for demographic, economic, and geographic data."
+  ipea:
+    name: "Ipea"
+    homepage_url: "https://www.ipea.gov.br/"
+    host_patterns:
+      - "ipea.gov.br"
+      - "www.ipea.gov.br"
+      - "ipeadata.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.93
+    independence_group: "ipea.gov.br"
+    audience_country: "BR"
+    notes: "Institute for Applied Economic Research. Strong for economic analysis and time series."
+  bcb:
+    name: "Banco Central do Brasil"
+    homepage_url: "https://www.bcb.gov.br/"
+    host_patterns:
+      - "bcb.gov.br"
+      - "www.bcb.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "bcb.gov.br"
+    audience_country: "BR"
+    notes: "Central bank. Primary source for Selic, monetary policy, banking supervision, and financial data."
+  tcu:
+    name: "TCU"
+    homepage_url: "https://portal.tcu.gov.br/"
+    host_patterns:
+      - "tcu.gov.br"
+      - "portal.tcu.gov.br"
+    source_kind: "government_record"
+    source_role: "oversight"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "tcu.gov.br"
+    audience_country: "BR"
+    notes: "Federal Court of Accounts. Top source for public expenditure audits and oversight."
+  cgu:
+    name: "CGU"
+    homepage_url: "https://www.gov.br/cgu/"
+    host_patterns:
+      - "cgu.gov.br"
+      - "www.cgu.gov.br"
+    source_kind: "government_record"
+    source_role: "oversight"
+    authority_tier: "primary"
+    authority_score: 0.97
+    independence_group: "cgu.gov.br"
+    audience_country: "BR"
+    notes: "Comptroller General. Transparency, anti-corruption, and internal control."
+  anvisa:
+    name: "Anvisa"
+    homepage_url: "https://www.gov.br/anvisa/"
+    host_patterns:
+      - "anvisa.gov.br"
+      - "www.anvisa.gov.br"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.95
+    independence_group: "anvisa.gov.br"
+    audience_country: "BR"
+    notes: "Health regulatory agency. Primary source for drug approvals, health product regulations."
+  inep:
+    name: "Inep"
+    homepage_url: "https://www.gov.br/inep/"
+    host_patterns:
+      - "inep.gov.br"
+      - "www.inep.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.95
+    independence_group: "inep.gov.br"
+    audience_country: "BR"
+    notes: "National education research institute. Primary source for ENEM, Censo Escolar, IDEB."
+  datasus:
+    name: "DataSUS"
+    homepage_url: "https://datasus.saude.gov.br/"
+    host_patterns:
+      - "datasus.saude.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.95
+    independence_group: "datasus.saude.gov.br"
+    audience_country: "BR"
+    notes: "Health data platform. Primary source for SUS statistics, mortality, morbidity, hospital data."
+  receita_federal:
+    name: "Receita Federal"
+    homepage_url: "https://www.gov.br/receitafederal/"
+    host_patterns:
+      - "receita.fazenda.gov.br"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.95
+    independence_group: "receita.fazenda.gov.br"
+    audience_country: "BR"
+    notes: "Federal Revenue Service. Tax regulations, fiscal data, CNPJ registry."
+  dados_abertos:
+    name: "Portal de Dados Abertos"
+    homepage_url: "https://dados.gov.br/"
+    host_patterns:
+      - "dados.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.92
+    independence_group: "dados.gov.br"
+    audience_country: "BR"
+    notes: "Federal open data portal. Aggregated datasets from multiple government agencies."
+  agencia_brasil:
+    name: "Agencia Brasil"
+    homepage_url: "https://agenciabrasil.ebc.com.br/"
+    host_patterns:
+      - "agenciabrasil.ebc.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.74
+    independence_group: "ebc.com.br"
+    audience_country: "BR"
+    notes: "Veiculo publico nacional util para cobertura institucional e agendas oficiais."
+  uol_noticias:
+    name: "UOL Noticias"
+    homepage_url: "https://noticias.uol.com.br/"
+    host_patterns:
+      - "noticias.uol.com.br"
+      - "uol.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.67
+    independence_group: "uol.com.br"
+    audience_country: "BR"
+    notes: "Portal de grande alcance; importante para cobertura geral e agregacao."
+  folha:
+    name: "Folha de S.Paulo"
+    homepage_url: "https://www.folha.uol.com.br/"
+    host_patterns:
+      - "folha.uol.com.br"
+      - "www.folha.uol.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.71
+    independence_group: "folha.uol.com.br"
+    audience_country: "BR"
+    notes: "Jornal de referencia nacional; util para contraste editorial com outros grupos."
+  g1:
+    name: "g1"
+    homepage_url: "https://g1.globo.com/"
+    host_patterns:
+      - "g1.globo.com"
+      - "globo.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.72
+    independence_group: "globo.com"
+    audience_country: "BR"
+    notes: "Portal nacional de noticias com ampla capilaridade regional."
+  estadao:
+    name: "Estadao"
+    homepage_url: "https://www.estadao.com.br/"
+    host_patterns:
+      - "estadao.com.br"
+      - "www.estadao.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.7
+    independence_group: "estadao.com.br"
+    audience_country: "BR"
+    notes: "Jornal tradicional relevante para economia e politica."
+  cartacapital:
+    name: "CartaCapital"
+    homepage_url: "https://www.cartacapital.com.br/"
+    host_patterns:
+      - "cartacapital.com.br"
+      - "www.cartacapital.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.63
+    independence_group: "cartacapital.com.br"
+    audience_country: "BR"
+    notes: "Veiculo de opiniao e reportagem importante para contraste editorial."
+  revista_oeste:
+    name: "Revista Oeste"
+    homepage_url: "https://www.revistaoeste.com/"
+    host_patterns:
+      - "revistaoeste.com"
+      - "www.revistaoeste.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.56
+    independence_group: "revistaoeste.com"
+    audience_country: "BR"
+    notes: "Relevante para cobertura de forte linha editorial e comparacao de enquadramento."
+  gazeta_do_povo:
+    name: "Gazeta do Povo"
+    homepage_url: "https://www.gazetadopovo.com.br/"
+    host_patterns:
+      - "gazetadopovo.com.br"
+      - "www.gazetadopovo.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.61
+    independence_group: "gazetadopovo.com.br"
+    audience_country: "BR"
+    notes: "Importante para cobertura conservadora e para medir divergencia editorial."
+  veja:
+    name: "VEJA"
+    homepage_url: "https://veja.abril.com.br/"
+    host_patterns:
+      - "veja.abril.com.br"
+      - "abril.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.66
+    independence_group: "abril.com.br"
+    audience_country: "BR"
+    notes: "Marca de revista nacional relevante em politica, economia e cultura."
+  o_globo:
+    name: "O Globo"
+    homepage_url: "https://oglobo.globo.com/"
+    host_patterns:
+      - "oglobo.globo.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.71
+    independence_group: "globo.com"
+    audience_country: "BR"
+    notes: "Jornal carioca do Grupo Globo. Mesma independencia editorial que g1."
+  valor_economico:
+    name: "Valor Economico"
+    homepage_url: "https://valor.globo.com/"
+    host_patterns:
+      - "valor.globo.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.72
+    independence_group: "globo.com"
+    audience_country: "BR"
+    notes: "Referencia em jornalismo economico e financeiro. Grupo Globo."
+  cnn_brasil:
+    name: "CNN Brasil"
+    homepage_url: "https://www.cnnbrasil.com.br/"
+    host_patterns:
+      - "cnnbrasil.com.br"
+      - "www.cnnbrasil.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.65
+    independence_group: "cnnbrasil.com.br"
+    audience_country: "BR"
+    notes: "Canal de noticias 24h. Licenciamento da marca CNN; grupo editorial independente."
+  r7:
+    name: "R7"
+    homepage_url: "https://www.r7.com/"
+    host_patterns:
+      - "r7.com"
+      - "www.r7.com"
+      - "noticias.r7.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.6
+    independence_group: "recordtv.com.br"
+    audience_country: "BR"
+    notes: "Portal do Grupo Record. Grande alcance popular."
+  bbc_brasil:
+    name: "BBC Brasil"
+    homepage_url: "https://www.bbc.com/portuguese"
+    host_patterns:
+      - "bbc.com/portuguese"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.75
+    independence_group: "bbc.com"
+    audience_country: "BR"
+    notes: "Servico em portugues da BBC. Independencia editorial forte; perspectiva internacional."
+  poder360:
+    name: "Poder360"
+    homepage_url: "https://www.poder360.com.br/"
+    host_patterns:
+      - "poder360.com.br"
+      - "www.poder360.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.68
+    independence_group: "poder360.com.br"
+    audience_country: "BR"
+    notes: "Jornalismo politico digital com cobertura de Brasilia e dados electorais."
+  nexo_jornal:
+    name: "Nexo Jornal"
+    homepage_url: "https://www.nexojornal.com.br/"
+    host_patterns:
+      - "nexojornal.com.br"
+      - "www.nexojornal.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.7
+    independence_group: "nexojornal.com.br"
+    audience_country: "BR"
+    notes: "Jornalismo explicativo e contextual. Independente de grandes grupos."
+  infomoney:
+    name: "InfoMoney"
+    homepage_url: "https://www.infomoney.com.br/"
+    host_patterns:
+      - "infomoney.com.br"
+      - "www.infomoney.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.66
+    independence_group: "infomoney.com.br"
+    audience_country: "BR"
+    notes: "Portal de financas e investimentos. Grupo XP."
+  correio_braziliense:
+    name: "Correio Braziliense"
+    homepage_url: "https://www.correiobraziliense.com.br/"
+    host_patterns:
+      - "correiobraziliense.com.br"
+      - "www.correiobraziliense.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.65
+    independence_group: "diariosassociados.com.br"
+    audience_country: "BR"
+    notes: "Principal jornal de Brasilia. Grupo Diarios Associados."
+  metropoles:
+    name: "Metropoles"
+    homepage_url: "https://www.metropoles.com/"
+    host_patterns:
+      - "metropoles.com"
+      - "www.metropoles.com"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.63
+    independence_group: "metropoles.com"
+    audience_country: "BR"
+    notes: "Portal de Brasilia com forte presenca digital. Independente."
+  intercept_brasil:
+    name: "The Intercept Brasil"
+    homepage_url: "https://www.intercept.com.br/"
+    host_patterns:
+      - "intercept.com.br"
+      - "www.intercept.com.br"
+      - "theintercept.com/brasil"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.64
+    independence_group: "theintercept.com"
+    audience_country: "BR"
+    notes: "Jornalismo investigativo. Util para contraste e reportagens exclusivas."
+  band:
+    name: "Band"
+    homepage_url: "https://www.band.uol.com.br/"
+    host_patterns:
+      - "band.uol.com.br"
+      - "www.band.uol.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.6
+    independence_group: "band.com.br"
+    audience_country: "BR"
+    notes: "Portal do Grupo Bandeirantes. TV e radio com presenca digital."
+  terra:
+    name: "Terra"
+    homepage_url: "https://www.terra.com.br/"
+    host_patterns:
+      - "terra.com.br"
+      - "www.terra.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.58
+    independence_group: "terra.com.br"
+    audience_country: "BR"
+    notes: "Portal de grande alcance. Agregador com conteudo proprio e licenciado."
+  sbt_news:
+    name: "SBT News"
+    homepage_url: "https://www.sbtnews.com.br/"
+    host_patterns:
+      - "sbtnews.com.br"
+      - "www.sbtnews.com.br"
+    source_kind: "news_article"
+    authority_tier: "secondary"
+    authority_score: 0.58
+    independence_group: "sbt.com.br"
+    audience_country: "BR"
+    notes: "Portal de noticias do SBT. Grupo Silvio Santos."
+  conjur:
+    name: "Consultor Juridico (ConJur)"
+    homepage_url: "https://www.conjur.com.br/"
+    host_patterns:
+      - "conjur.com.br"
+      - "www.conjur.com.br"
+    source_kind: "news_article"
+    source_role: "legal_analysis"
+    authority_tier: "secondary"
+    authority_score: 0.72
+    independence_group: "conjur.com.br"
+    audience_country: "BR"
+    notes: "Referencia em jornalismo juridico. Alta autoridade para analise de decisoes judiciais."
+  jota:
+    name: "JOTA"
+    homepage_url: "https://www.jota.info/"
+    host_patterns:
+      - "jota.info"
+      - "www.jota.info"
+    source_kind: "news_article"
+    source_role: "legal_analysis"
+    authority_tier: "secondary"
+    authority_score: 0.7
+    independence_group: "jota.info"
+    audience_country: "BR"
+    notes: "Jornalismo juridico e regulatorio. Forte em STF, tributario e compliance."

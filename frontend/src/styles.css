@@ -1,0 +1,44 @@
+:root {
+  /* Paleta da estação (hero) */
+  --brick: #a65e44;
+  --brick-deep: #7a3f2e;
+  --steel: #2c5377;
+  --steel-deep: #1a334a;
+  --cream: #d9d2c5;
+  --cream-soft: #ebe6dc;
+  --ink: #2a2a2a;
+  --ink-soft: #4a4540;
+  --mustard: #cc9933;
+  --mustard-bright: #e0b040;
+  --platform: #8a857c;
+  --paper: #f4f0e8;
+  --danger: #9f1239;
+  --surface: rgba(244, 240, 232, 0.94);
+  --surface-border: rgba(42, 42, 42, 0.16);
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  background:
+    linear-gradient(180deg, var(--cream-soft) 0%, var(--paper) 45%, #e2ddd2 100%);
+  color: var(--ink);
+}
+
+button,
+input {
+  border-radius: 2px;
+}
