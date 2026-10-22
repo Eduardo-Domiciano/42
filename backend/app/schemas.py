@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field, HttpUrl
 
 class IngestUrlRequest(BaseModel):
     url: HttpUrl
+    refresh: bool = False
 
 
 class TopicSearchRequest(BaseModel):
@@ -14,6 +15,12 @@ class TopicSearchRequest(BaseModel):
     date_from: date | None = None
     date_to: date | None = None
     on_date: date | None = None
+
+
+class OutboundLinkOut(BaseModel):
+    id: int
+    url: str
+    anchor_text: str | None = None
 
 
 class SourceOut(BaseModel):
@@ -116,6 +123,8 @@ class ArticleOut(BaseModel):
     claims: list[ClaimAssessmentOut] = Field(default_factory=list)
     cross_references: list[CrossReferenceOut] = Field(default_factory=list)
     narrative_summary: str = ""
+    analysis_cached: bool = False
+    outbound_links: list[OutboundLinkOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

@@ -15,7 +15,7 @@ Os quatro projetos originais em `../` **não foram apagados**.
 ## Docker (recomendado)
 
 ```bash
-cd veracidade-noticias
+cd 42
 docker compose up --build
 ```
 
@@ -40,6 +40,19 @@ API: `http://127.0.0.1:8000/docs`
 - `POST /api/ingest/url` — `{ "url": "https://..." }`
 - `POST /api/search/topic` — `{ "topic": "...", "date_from": "2026-10-01", "date_to": "2026-10-20" }`
 
+Opcional: `export OPENROUTER_API_KEY=sk-or-...` para claims via LLM (sem chave, usa heurísticas).
+
+## Acervo de análises (SQLite)
+
+O banco local é o arquivo de análises reutilizáveis:
+
+- Artigo: título, autor, link, data, ownership (grupo), corpo
+- Links citados no HTML (`article_outbound_links`)
+- Claims (F3), cruzamento (F4) e **snapshot** da análise (`article_analyses`)
+- Em nova busca, peers do **mesmo claim** no acervo entram primeiro; stance pode ser reutilizada (`method=acervo`)
+- Resposta com `analysis_cached: true` quando o snapshot bate com o `content_hash`
+- `POST /api/articles/{id}/reanalyze` força nova análise; ingest com `{ "refresh": true }` rebaixa a URL
+
 ## Frontend (local, sem Docker)
 
 ```bash
@@ -49,32 +62,6 @@ npm start
 ```
 
 Abra `http://localhost:4200` (API em `http://127.0.0.1:8000`).
-
-## Fase 2 (perfis)
-
-- Catálogo versionado: `backend/catalog/bias_br.yml` (metodologia em `docs/catalogo-bias.md`)
-- Classificação de tipo: artigo, opinião, editorial, documento oficial, comunicado, etc.
-- API: `GET /api/catalog/bias`
-
-## Fase 3 (claims)
-
-- Extrai afirmações checáveis e pontua: temporal, geográfica, partidária, distorção, suporte interno
-- Com `OPENROUTER_API_KEY` usa LLM; sem chave, usa heurísticas
-- Claims persistidos em `claims` / `claim_assessments`
-- `POST /api/articles/{id}/reanalyze` força nova avaliação
-
-```bash
-# opcional no .env ou no shell antes do compose
-export OPENROUTER_API_KEY=sk-or-...
-```
-
-## Fase 4 (cruzamento)
-
-- Busca evidências pares/oficiais por claim
-- Stance (apoia/refuta/relacionada) + consenso ponderado
-- Alerta de mesmo Ownership (grupo dono) e veto de fonte primária
-- Calibration (calibração) entre análise isolada (F3) e cruzamento (F4)
-- Detalhes: `docs/fase-4-cruzamento.md`
 
 ## Redes neurais locais (complemento)
 

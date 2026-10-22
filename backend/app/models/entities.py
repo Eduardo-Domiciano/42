@@ -67,6 +67,63 @@ class Article(Base):
     query_links: Mapped[list[QueryArticle]] = relationship(back_populates="article")
     claim_links: Mapped[list[ArticleClaim]] = relationship(back_populates="article")
     assessments: Mapped[list[ClaimAssessment]] = relationship(back_populates="article")
+    analyses: Mapped[list[ArticleAnalysis]] = relationship(back_populates="article")
+    outbound_links: Mapped[list[ArticleOutboundLink]] = relationship(
+        back_populates="article"
+    )
+
+
+class ArticleAnalysis(Base):
+    """Snapshot vigente da análise agregada (reuso sem recalcular)."""
+
+    __tablename__ = "article_analyses"
+    __table_args__ = (
+        UniqueConstraint(
+            "article_id", "content_hash", name="uq_article_analysis_hash"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), index=True)
+    content_hash: Mapped[str] = mapped_column(String(64), index=True)
+    preliminary_verdict: Mapped[str] = mapped_column(String(40), default="insufficient")
+    analysis_method: Mapped[str] = mapped_column(String(40), default="heuristic")
+    temporal_coherence: Mapped[str] = mapped_column(Text, default="")
+    source_partiality_note: Mapped[str] = mapped_column(Text, default="")
+    factors_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    narrative_summary: Mapped[str] = mapped_column(Text, default="")
+    ownership_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bias_label: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    bias_score: Mapped[float | None] = mapped_column(Float, nullable=True)
+    bias_catalog_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    authority_tier: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    content_type_guess: Mapped[str] = mapped_column(String(40), default="article")
+    content_type_confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    title: Mapped[str | None] = mapped_column(Text, nullable=True)
+    url: Mapped[str] = mapped_column(Text, default="")
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    config_note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    article: Mapped[Article] = relationship(back_populates="analyses")
+
+
+class ArticleOutboundLink(Base):
+    """Links citados no HTML/corpo do artigo."""
+
+    __tablename__ = "article_outbound_links"
+    __table_args__ = (
+        UniqueConstraint("article_id", "url", name="uq_article_outbound_url"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), index=True)
+    url: Mapped[str] = mapped_column(Text)
+    anchor_text: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    article: Mapped[Article] = relationship(back_populates="outbound_links")
 
 
 class Claim(Base):

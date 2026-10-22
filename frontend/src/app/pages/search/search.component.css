@@ -444,6 +444,33 @@ input:focus {
   font-size: 0.8rem;
 }
 
+.badge.archive {
+  background: rgba(44, 83, 119, 0.12);
+  border-color: rgba(44, 83, 119, 0.4);
+  color: var(--steel-deep);
+}
+
+.outbound {
+  margin: 0.65rem 0 0;
+  font-size: 0.9rem;
+}
+
+.outbound h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: var(--steel-deep);
+}
+
+.outbound ul {
+  margin: 0;
+  padding-left: 1.15rem;
+}
+
+.outbound a {
+  color: var(--steel);
+  word-break: break-word;
+}
+
 .claims {
   margin-top: 1rem;
 }

@@ -3,7 +3,8 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import datetime
-from urllib.parse import urlparse, urlunparse
+from html import unescape
+from urllib.parse import urljoin, urlparse, urlunparse
 
 import httpx
 import trafilatura
@@ -13,7 +14,13 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import Article, Source
+from app.services.analysis_cache import replace_outbound_links
 from app.services.content_classifier import classify_content
+
+_HREF = re.compile(
+    r"""<a\s+[^>]*href=["']([^"'#]+)["'][^>]*>(.*?)</a>""",
+    re.I | re.DOTALL,
+)
 
 
 def normalize_url(url: str) -> str:
@@ -48,10 +55,41 @@ def _parse_published(value: str | None) -> datetime | None:
         return None
 
 
-def fetch_and_store_article(db: Session, url: str) -> Article:
+def extract_outbound_links(
+    html: str, *, base_url: str, limit: int = 40
+) -> list[tuple[str, str | None]]:
+    """Extrai hrefs absolutos do HTML (citações / fontes no texto)."""
+    out: list[tuple[str, str | None]] = []
+    seen: set[str] = set()
+    base_norm = normalize_url(base_url)
+    for match in _HREF.finditer(html or ""):
+        raw = unescape(match.group(1).strip())
+        if raw.startswith(("javascript:", "mailto:", "tel:", "data:")):
+            continue
+        abs_url = urljoin(base_url, raw)
+        if not abs_url.startswith(("http://", "https://")):
+            continue
+        try:
+            nurl = normalize_url(abs_url)
+        except Exception:
+            continue
+        if nurl == base_norm or nurl in seen:
+            continue
+        seen.add(nurl)
+        anchor = re.sub(r"<[^>]+>", " ", match.group(2) or "")
+        anchor = re.sub(r"\s+", " ", unescape(anchor)).strip() or None
+        out.append((abs_url, anchor))
+        if len(out) >= limit:
+            break
+    return out
+
+
+def fetch_and_store_article(
+    db: Session, url: str, *, refresh: bool = False
+) -> Article:
     normalized = normalize_url(str(url))
     existing = db.scalar(select(Article).where(Article.normalized_url == normalized))
-    if existing and existing.body:
+    if existing and existing.body and not refresh:
         return existing
 
     headers = {"User-Agent": settings.user_agent}
@@ -96,13 +134,13 @@ def fetch_and_store_article(db: Session, url: str) -> Article:
         published_at = published_at or _parse_published(getattr(meta, "date", None))
 
     if not body:
-        # Fallback mínimo: texto limpo sem tags
         body = re.sub(r"<[^>]+>", " ", html)
         body = re.sub(r"\s+", " ", body).strip()[:8000]
 
     excerpt = (body[:400] + "…") if body and len(body) > 400 else body
     content_hash = hashlib.sha256((body or "").encode("utf-8")).hexdigest()
     source = resolve_source(db, normalized)
+    outbound = extract_outbound_links(html, base_url=normalized)
 
     if existing:
         existing.title = title or existing.title
@@ -117,6 +155,7 @@ def fetch_and_store_article(db: Session, url: str) -> Article:
         existing.content_type = classify_content(existing).content_type
         db.commit()
         db.refresh(existing)
+        replace_outbound_links(db, existing.id, outbound)
         return existing
 
     article = Article(
@@ -136,4 +175,5 @@ def fetch_and_store_article(db: Session, url: str) -> Article:
     article.content_type = classify_content(article).content_type
     db.commit()
     db.refresh(article)
+    replace_outbound_links(db, article.id, outbound)
     return article

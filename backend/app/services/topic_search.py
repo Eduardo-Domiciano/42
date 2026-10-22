@@ -7,13 +7,16 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
 from app.models import Article, QueryArticle, TopicQuery
-from app.schemas import ArticleOut, SourceOut, TopicQueryOut
-from app.services.analyze import analyze_article, build_panorama
-from app.services.claim_pipeline import ensure_claim_assessments
-from app.services.cross_reference import run_cross_reference_for_article
+from app.schemas import ArticleOut, TopicQueryOut
+from app.services.analyze import build_panorama
+from app.services.article_response import build_article_out
 from app.services.fetch_article import fetch_and_store_article
-from app.services.narrative_summary import build_article_narrative, build_topic_narrative
-from app.services.topic_relevance import filter_and_rank_articles, topic_tokens
+from app.services.narrative_summary import build_topic_narrative
+from app.services.topic_relevance import (
+    filter_and_rank_articles,
+    score_topic_relevance,
+    topic_tokens,
+)
 from app.services.web_search import search_news_urls
 
 
@@ -102,41 +105,12 @@ def _article_out(
     allow_llm: bool,
     peer_pool: list[Article],
 ) -> ArticleOut:
-    claims = ensure_claim_assessments(db, article, allow_llm=allow_llm)
-    xrefs = []
-    if settings.crossref_enabled and settings.crossref_on_topic and claims:
-        xrefs = run_cross_reference_for_article(
-            db,
-            article,
-            claims[: settings.crossref_max_claims_url],
-            peer_pool=peer_pool,
-            allow_llm_stance=False,
-        )
-    body = article.body or ""
-    preview = (body[:500] + "…") if len(body) > 500 else body or None
-    source_out = SourceOut.model_validate(article.source) if article.source else None
-    analysis = analyze_article(article, claims=claims)
-    narrative = build_article_narrative(
-        title=article.title,
-        source=source_out,
-        analysis=analysis,
-        claims=claims,
-        cross_references=xrefs,
-    )
-    return ArticleOut(
-        id=article.id,
-        url=article.url,
-        title=article.title,
-        author=article.author,
-        excerpt=article.excerpt,
-        body_preview=preview,
-        published_at=article.published_at,
-        content_type=article.content_type,
-        source=source_out,
-        analysis=analysis,
-        claims=claims,
-        cross_references=xrefs,
-        narrative_summary=narrative,
+    return build_article_out(
+        db,
+        article,
+        allow_llm=allow_llm,
+        run_crossref=settings.crossref_enabled and settings.crossref_on_topic,
+        peer_pool=peer_pool,
     )
 
 
@@ -182,7 +156,14 @@ def run_topic_search(
         refine_query=True,
     )
     fetch_failures = 0
+    # Para cedo quando já há material relevante suficiente (evita 504 no proxy).
+    early_target = max(settings.topic_search_max_results, 8)
+    accepted_so_far = sum(
+        1 for a in candidates if score_topic_relevance(topic, a).accepted
+    )
     for url in web_urls:
+        if accepted_so_far >= early_target:
+            break
         try:
             article = fetch_and_store_article(db, url)
             article = db.scalar(
@@ -197,6 +178,8 @@ def run_topic_search(
                 continue
             seen_ids.add(article.id)
             candidates.append(article)
+            if score_topic_relevance(topic, article).accepted:
+                accepted_so_far += 1
         except Exception:
             fetch_failures += 1
             continue

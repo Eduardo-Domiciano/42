@@ -111,7 +111,24 @@
         @if (articleResult.published_at) {
           <span>· {{ articleResult.published_at | date: 'dd/MM/yyyy HH:mm' }}</span>
         }
+        @if (articleResult.analysis_cached) {
+          <span class="badge archive">Do acervo (análise em cache)</span>
+        }
       </p>
+      @if (articleResult.outbound_links?.length) {
+        <div class="outbound">
+          <h4>Links citados</h4>
+          <ul>
+            @for (link of articleResult.outbound_links; track link.id) {
+              <li>
+                <a [href]="link.url" target="_blank" rel="noopener">{{
+                  link.anchor_text || link.url
+                }}</a>
+              </li>
+            }
+          </ul>
+        </div>
+      }
       @if (articleResult.source) {
         <p class="source">
           Fonte: <strong>{{ articleResult.source.name }}</strong>
@@ -356,6 +373,9 @@
                   @if (item.published_at) {
                     <span>· {{ item.published_at | date: 'dd/MM/yyyy' }}</span>
                   }
+                  @if (item.analysis_cached) {
+                    <span class="badge compact archive">Acervo</span>
+                  }
                   @if (item.analysis; as a) {
                     <span class="badge compact">{{
                       verdictLabel(a.preliminary_verdict)
@@ -391,6 +411,9 @@
                   @if (item.published_at) {
                     <span>· {{ item.published_at | date: 'dd/MM/yyyy' }}</span>
                   }
+                  @if (item.analysis_cached) {
+                    <span class="badge archive">Do acervo</span>
+                  }
                 </p>
                 @if (item.source) {
                   <p class="source">
@@ -401,6 +424,24 @@
                       · {{ ownershipWord() }}: {{ item.source.ownership_name }}
                     }
                   </p>
+                }
+                @if (item.outbound_links?.length) {
+                  <div class="outbound">
+                    <h4>Links citados</h4>
+                    <ul>
+                      @for (link of item.outbound_links; track link.id) {
+                        <li>
+                          <a
+                            [href]="link.url"
+                            target="_blank"
+                            rel="noopener"
+                            (click)="$event.stopPropagation()"
+                            >{{ link.anchor_text || link.url }}</a
+                          >
+                        </li>
+                      }
+                    </ul>
+                  </div>
                 }
                 @if (item.analysis; as a) {
                   <div class="analysis">

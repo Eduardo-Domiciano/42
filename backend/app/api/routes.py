@@ -10,71 +10,17 @@ from app.models import Article, TopicQuery
 from app.schemas import (
     ArticleOut,
     IngestUrlRequest,
-    SourceOut,
     TopicQueryOut,
     TopicSearchRequest,
 )
-from app.services.analyze import analyze_article, build_panorama
-from app.services.claim_pipeline import ensure_claim_assessments
-from app.services.cross_reference import run_cross_reference_for_article
+from app.services.analyze import build_panorama
+from app.services.article_response import build_article_out
 from app.services.fetch_article import fetch_and_store_article
 from app.services.llm_client import llm_configured
-from app.services.narrative_summary import build_article_narrative, build_topic_narrative
+from app.services.narrative_summary import build_topic_narrative
 from app.services.topic_search import run_topic_search
 
 router = APIRouter(prefix="/api")
-
-
-def _article_out(
-    db: Session,
-    article: Article,
-    *,
-    run_claims: bool = True,
-    allow_llm: bool = True,
-    run_crossref: bool = True,
-    peer_pool: list[Article] | None = None,
-) -> ArticleOut:
-    claims = []
-    if run_claims:
-        claims = ensure_claim_assessments(db, article, allow_llm=allow_llm)
-    analysis = analyze_article(article, claims=claims)
-
-    xrefs = []
-    if run_crossref and settings.crossref_enabled and claims:
-        limited = claims[: settings.crossref_max_claims_url]
-        xrefs = run_cross_reference_for_article(
-            db,
-            article,
-            limited,
-            peer_pool=peer_pool,
-            allow_llm_stance=False,
-        )
-
-    body = article.body or ""
-    preview = (body[:500] + "…") if len(body) > 500 else body or None
-    source_out = SourceOut.model_validate(article.source) if article.source else None
-    narrative = build_article_narrative(
-        title=article.title,
-        source=source_out,
-        analysis=analysis,
-        claims=claims,
-        cross_references=xrefs,
-    )
-    return ArticleOut(
-        id=article.id,
-        url=article.url,
-        title=article.title,
-        author=article.author,
-        excerpt=article.excerpt,
-        body_preview=preview,
-        published_at=article.published_at,
-        content_type=article.content_type,
-        source=source_out,
-        analysis=analysis,
-        claims=claims,
-        cross_references=xrefs,
-        narrative_summary=narrative,
-    )
 
 
 @router.get("/health")
@@ -87,6 +33,7 @@ def health() -> dict[str, object]:
         "claim_use_llm": settings.claim_use_llm,
         "crossref_enabled": settings.crossref_enabled,
         "nn": nli_status(),
+        "analysis_archive": True,
     }
 
 
@@ -107,7 +54,9 @@ def get_bias_catalog() -> dict:
 @router.post("/ingest/url", response_model=ArticleOut)
 def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> ArticleOut:
     try:
-        article = fetch_and_store_article(db, str(payload.url))
+        article = fetch_and_store_article(
+            db, str(payload.url), refresh=payload.refresh
+        )
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"Falha ao buscar URL: {exc}") from exc
 
@@ -118,7 +67,7 @@ def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> Arti
     )
     if not article:
         raise HTTPException(status_code=500, detail="Artigo não persistido")
-    return _article_out(db, article, allow_llm=True, run_crossref=True)
+    return build_article_out(db, article, allow_llm=True, run_crossref=True)
 
 
 @router.post("/search/topic", response_model=TopicQueryOut)
@@ -160,7 +109,7 @@ def get_topic_query(query_id: int, db: Session = Depends(get_db)) -> TopicQueryO
     xrefs_map = {}
     for idx, article in enumerate(articles):
         allow_llm = idx < settings.claim_llm_max_per_topic
-        out = _article_out(
+        out = build_article_out(
             db,
             article,
             allow_llm=allow_llm,
@@ -201,7 +150,7 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> ArticleOut:
     )
     if not article:
         raise HTTPException(status_code=404, detail="Artigo não encontrado")
-    return _article_out(db, article)
+    return build_article_out(db, article)
 
 
 @router.post("/articles/{article_id}/reanalyze", response_model=ArticleOut)
@@ -213,8 +162,7 @@ def reanalyze_article(article_id: int, db: Session = Depends(get_db)) -> Article
     )
     if not article:
         raise HTTPException(status_code=404, detail="Artigo não encontrado")
-    claims = ensure_claim_assessments(db, article, force=True, allow_llm=True)
-    run_cross_reference_for_article(
-        db, article, claims[: settings.crossref_max_claims_url], force=True
+    # force: invalida claims/F4 e regenera snapshot
+    return build_article_out(
+        db, article, run_claims=True, run_crossref=True, force=True, allow_llm=True
     )
-    return _article_out(db, article, run_claims=True, run_crossref=True)

@@ -7,4 +7,10 @@ Arquivos servidos na raiz do site (Angular).
 | Arquivo | O que faz |
 | --- | --- |
 | `hero-estacao.jpg` | Imagem de fundo do cabeçalho. |
-| `favicon.ico` | Ícone da aba (se presente). |
+| `favicon.ico` | Ícone da aba. |
+
+## Subpastas
+
+| Pasta | O que guarda |
+| --- | --- |
+| `fonts/` | Fraunces e IBM Plex Sans (locais, sem Google Fonts). |

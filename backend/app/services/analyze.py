@@ -124,7 +124,12 @@ def analyze_article(
         bias_label=source.bias_label if source else None,
         bias_score=source.bias_score if source else None,
         bias_catalog_version=source.bias_catalog_version if source else None,
-        ownership_name=(source.ownership_name if source else None),
+        ownership_name=(
+            (source.ownership_name or source.ownership_group)
+            if source
+            else None
+        )
+        or "desconhecido",
         source_partiality_note=partiality,
         temporal_coherence=temporal,
         preliminary_verdict=verdict,

@@ -99,14 +99,27 @@ def topic_phrase(topic: str) -> str:
     return fold_text(topic).strip()
 
 
+# Grafias comuns: query web + match lexical (morais↔moraes).
+_QUERY_ALIASES = {
+    "morais": "moraes",
+}
+
+
 def build_search_query(topic: str, *, for_news: bool = False) -> str:
     """Query focada sem aspas rígidas (aspas zeravam resultados no DDG)."""
     phrase = topic_phrase(topic)
-    toks = topic_tokens(topic)
+    toks: list[str] = []
+    seen: set[str] = set()
+    for t in topic_tokens(topic):
+        alias = _QUERY_ALIASES.get(t, t)
+        if alias in seen:
+            continue
+        seen.add(alias)
+        toks.append(alias)
     if not phrase:
         base = (topic or "").strip()
     elif len(toks) <= 2:
-        base = phrase
+        base = " ".join(toks) if toks else phrase
     else:
         base = " ".join(toks[:5])
     if for_news:
@@ -121,8 +134,21 @@ def _blob_for_article(article: Article) -> tuple[str, str, str]:
     return title, excerpt, body
 
 
+def _token_variants(token: str) -> list[str]:
+    variants = [token]
+    alias = _QUERY_ALIASES.get(token)
+    if alias and alias not in variants:
+        variants.append(alias)
+    for src, dst in _QUERY_ALIASES.items():
+        if token == dst and src not in variants:
+            variants.append(src)
+    return variants
+
+
 def _token_hit(token: str, text: str) -> bool:
-    return bool(re.search(rf"(?<!\w){re.escape(token)}(?!\w)", text))
+    return any(
+        re.search(rf"(?<!\w){re.escape(v)}(?!\w)", text) for v in _token_variants(token)
+    )
 
 
 def lexical_topic_score(

@@ -125,6 +125,7 @@ export class SearchComponent {
       'heuristic+claims': 'Heuristic + claims (regras + afirmativas)',
       'heuristic+nli': 'Heuristic + NLI (regras + rede neural)',
       nli: 'NLI (rede neural de entailment)',
+      acervo: 'Acervo (análise reutilizada do banco)',
     };
     return map[method || ''] || method || '—';
   }

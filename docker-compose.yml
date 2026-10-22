@@ -5,7 +5,7 @@ services:
       dockerfile: Dockerfile
       args:
         INSTALL_NN: ${INSTALL_NN:-0}
-    container_name: veracidade-backend
+    container_name: 42-backend
     environment:
       DATABASE_URL: sqlite:////data/veracidade.db
       CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://localhost:4200,http://127.0.0.1:4200"
@@ -27,7 +27,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: veracidade-frontend
+    container_name: 42-frontend
     ports:
       - "8080:80"
     depends_on:

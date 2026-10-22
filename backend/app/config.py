@@ -21,13 +21,17 @@ class Settings(BaseSettings):
     # String (não list): pydantic-settings tenta JSON em list[str] e quebra com CSV do Docker
     cors_origins: str = Field(default=_DEFAULT_CORS)
     topic_search_max_results: int = 12
-    topic_search_web_candidates: int = 32
+    # Poucos fetches: DDG + sites BR demoram; nginx/proxy estourava em 120s.
+    topic_search_web_candidates: int = 14
     topic_min_relevance: float = 0.32
     topic_min_semantic: float = 0.48
     topic_min_lexical_for_semantic: float = 0.28
     topic_require_published_at_in_range: bool = True
-    http_timeout_seconds: float = 25.0
-    user_agent: str = "42/0.1 (+local; projeto ④②; pesquisa educacional)"
+    http_timeout_seconds: float = 18.0
+    # ASCII only: httpx/headers rejeitam caracteres como ④②
+    user_agent: str = (
+        "Mozilla/5.0 (compatible; Projeto42/0.1; +local; pesquisa educacional)"
+    )
 
     # F3 — claims / LLM
     openrouter_api_key: str = ""

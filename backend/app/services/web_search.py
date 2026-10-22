@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import logging
+import time
 from datetime import date
 
 from duckduckgo_search import DDGS
 
 from app.config import settings
 from app.services.topic_relevance import build_search_query
+
+logger = logging.getLogger(__name__)
 
 
 def search_news_urls(
@@ -17,8 +21,8 @@ def search_news_urls(
     refine_query: bool = True,
 ) -> list[str]:
     """
-    Busca URLs. Sem período: prioriza text (histórico) e completa com news.
-    Com período: news + text, com timelimit só se o intervalo for curto.
+    Busca URLs. Prioriza news (DDG text tem falhado vazio / rate-limit no BR).
+    Com período curto, aplica timelimit w/m.
     """
     limit = max_results or settings.crossref_max_peers
     has_range = bool(date_from or date_to)
@@ -29,15 +33,6 @@ def search_news_urls(
     else:
         q_text = query.strip()
         q_news = query.strip()
-
-    if "site:" not in q_text.lower():
-        q_text_br = f"{q_text} site:.br"
-    else:
-        q_text_br = q_text
-    if "site:" not in q_news.lower():
-        q_news_br = f"{q_news} site:.br"
-    else:
-        q_news_br = q_news
 
     timelimit = None
     if date_from and date_to:
@@ -56,45 +51,64 @@ def search_news_urls(
         seen.add(url)
         urls.append(url)
 
-    try:
+    def _news(ddgs: DDGS, q: str, n: int) -> None:
+        for item in (
+            ddgs.news(
+                q,
+                region="br-pt",
+                timelimit=timelimit if has_range else None,
+                max_results=n,
+            )
+            or []
+        ):
+            _add(item.get("url") or item.get("href"))
+
+    def _text(ddgs: DDGS, q: str, n: int) -> None:
+        for item in (
+            ddgs.text(
+                q,
+                region="br-pt",
+                timelimit=timelimit if has_range else None,
+                max_results=n,
+            )
+            or []
+        ):
+            _add(item.get("href"))
+
+    # Poucas chamadas: DDG rate-limita fácil se text+news+site repetem.
+    attempts = (
+        ("news", q_news, limit),
+        ("news", f"{q_news} site:.br", max(8, limit // 2)),
+        ("text", q_text, max(8, limit // 2)),
+    )
+
+    def _run_pass() -> None:
         with DDGS() as ddgs:
-            # 1) text BR
-            for item in ddgs.text(
-                q_text_br,
-                region="br-pt",
-                timelimit=timelimit if has_range else None,
-                max_results=limit,
-            ) or []:
-                _add(item.get("href"))
+            for kind, q, n in attempts:
+                if len(urls) >= limit:
+                    break
+                before = len(urls)
+                try:
+                    if kind == "news":
+                        _news(ddgs, q, n)
+                    else:
+                        _text(ddgs, q, n)
+                except Exception as exc:
+                    logger.warning("DDG %s falhou (%s): %s", kind, q[:60], exc)
+                    time.sleep(0.7)
+                    continue
+                if len(urls) == before:
+                    time.sleep(0.4)
 
-            # 2) text sem site (mais recall)
-            if len(urls) < max(5, limit // 2):
-                for item in ddgs.text(
-                    q_text,
-                    region="br-pt",
-                    timelimit=timelimit if has_range else None,
-                    max_results=limit,
-                ) or []:
-                    _add(item.get("href"))
+    try:
+        _run_pass()
+        if not urls:
+            time.sleep(1.2)
+            _run_pass()
+    except Exception as exc:
+        logger.warning("DDG sessão falhou: %s", exc)
 
-            # 3) news — sempre como complemento (e principal se houver período)
-            news_n = limit if has_range else max(6, limit // 2)
-            for item in ddgs.news(
-                q_news_br,
-                region="br-pt",
-                timelimit=timelimit if has_range else None,
-                max_results=news_n,
-            ) or []:
-                _add(item.get("url") or item.get("href"))
+    if not urls:
+        logger.warning("DDG sem URLs para query=%r", query[:120])
 
-            if len(urls) < max(4, limit // 3):
-                for item in ddgs.news(
-                    q_news,
-                    region="br-pt",
-                    timelimit=timelimit if has_range else None,
-                    max_results=news_n,
-                ) or []:
-                    _add(item.get("url") or item.get("href"))
-    except Exception:
-        return urls
     return urls[:limit]

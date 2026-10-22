@@ -82,6 +82,12 @@ export interface ArticleAnalysisOut {
   factors: string[];
 }
 
+export interface OutboundLinkOut {
+  id: number;
+  url: string;
+  anchor_text: string | null;
+}
+
 export interface ArticleOut {
   id: number;
   url: string;
@@ -96,6 +102,8 @@ export interface ArticleOut {
   claims: ClaimAssessmentOut[];
   cross_references: CrossReferenceOut[];
   narrative_summary: string;
+  analysis_cached?: boolean;
+  outbound_links?: OutboundLinkOut[];
 }
 
 export interface TopicPanoramaOut {

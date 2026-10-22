@@ -8,7 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
-from app.models import Article, Claim, CrossReference, EvidenceItem
+from app.models import Article, Claim, ClaimAssessment, CrossReference, EvidenceItem
 from app.schemas import (
     ClaimAssessmentOut,
     CrossReferenceOut,
@@ -82,6 +82,62 @@ def _authority_weight(article: Article) -> float:
     return 0.45
 
 
+def _archive_peers(db: Session, claim_id: int, root: Article) -> list[Article]:
+    """Artigos do acervo que já têm assessment (ou foram evidência) deste claim."""
+    assessed_ids = list(
+        db.scalars(
+            select(ClaimAssessment.article_id)
+            .where(
+                ClaimAssessment.claim_id == claim_id,
+                ClaimAssessment.article_id != root.id,
+            )
+            .limit(settings.crossref_max_peers * 2)
+        ).all()
+    )
+    evidence_ids = list(
+        db.scalars(
+            select(EvidenceItem.evidence_article_id)
+            .where(
+                EvidenceItem.claim_id == claim_id,
+                EvidenceItem.evidence_article_id != root.id,
+            )
+            .limit(settings.crossref_max_peers * 2)
+        ).all()
+    )
+    ids = list(dict.fromkeys([*assessed_ids, *evidence_ids]))
+    if not ids:
+        return []
+    return list(
+        db.scalars(
+            select(Article)
+            .options(joinedload(Article.source))
+            .where(Article.id.in_(ids))
+        )
+        .unique()
+        .all()
+    )
+
+
+def _cached_stance(
+    db: Session, claim_id: int, peer_id: int
+) -> tuple[str, float, str, str] | None:
+    """Reutiliza stance já gravada no acervo para o mesmo claim×peer."""
+    row = db.scalar(
+        select(EvidenceItem)
+        .where(
+            EvidenceItem.claim_id == claim_id,
+            EvidenceItem.evidence_article_id == peer_id,
+        )
+        .order_by(EvidenceItem.created_at.desc())
+    )
+    if not row:
+        return None
+    note = row.note or "Stance reutilizada do acervo"
+    if "acervo" not in note.lower():
+        note = f"{note} | acervo"
+    return row.stance, float(row.stance_confidence), note, "acervo"
+
+
 def _local_peers(
     db: Session,
     claim_text: str,
@@ -123,7 +179,6 @@ def _local_peers(
             or_(Article.published_at.is_(None), Article.published_at.between(start, end))
         )
     peers = list(db.scalars(stmt).unique().all())
-    # Complemento: embeddings reordenam candidatos do LIKE (não substituem a busca)
     if peers and get_embedder():
         ranked = rank_articles_by_claim(
             claim_text, peers, top_k=settings.crossref_max_peers
@@ -301,23 +356,38 @@ def run_cross_reference_for_article(
         if not claim:
             continue
 
-        peers = _local_peers(db, claim.canonical_text, root, pool=peer_pool)
-        if len(peers) < settings.crossref_min_local_before_web and peer_pool is None:
-            peers.extend(_fetch_web_peers(db, claim.canonical_text, root))
+        # Acervo primeiro: artigos já analisados para o mesmo claim
+        archive = _archive_peers(db, claim_id, root)
+        peers = list(archive)
+        if peer_pool is not None:
+            peers.extend(_local_peers(db, claim.canonical_text, root, pool=peer_pool))
+        else:
+            peers.extend(_local_peers(db, claim.canonical_text, root, pool=None))
+            if len(peers) < settings.crossref_min_local_before_web:
+                peers.extend(_fetch_web_peers(db, claim.canonical_text, root))
 
-        # Dedup peers by id
-        uniq: dict[int, Article] = {p.id: p for p in peers if p.id != root.id}
+        uniq: dict[int, Article] = {}
+        for p in peers:
+            if p.id != root.id and p.id not in uniq:
+                uniq[p.id] = p
+        # Mantém ordem: acervo → local → web
         peers = list(uniq.values())[: settings.crossref_max_peers]
 
         evidence_rows: list[EvidenceItem] = []
         agg_input: list[tuple[Article, str, float, str, str]] = []
+        archive_hits = 0
 
         for peer in peers:
-            stance, conf, note, method = classify_stance(
-                claim.canonical_text,
-                peer,
-                allow_llm=allow_llm_stance and settings.crossref_use_llm_stance,
-            )
+            cached = _cached_stance(db, claim_id, peer.id)
+            if cached:
+                stance, conf, note, method = cached
+                archive_hits += 1
+            else:
+                stance, conf, note, method = classify_stance(
+                    claim.canonical_text,
+                    peer,
+                    allow_llm=allow_llm_stance and settings.crossref_use_llm_stance,
+                )
             weight = _authority_weight(peer) * conf
             same_owner = _ownership_key(peer) == _ownership_key(root)
             row = EvidenceItem(
@@ -339,6 +409,12 @@ def run_cross_reference_for_article(
         consensus, calibration, veto, voices, factors = _aggregate(
             root, assessment.verdict, agg_input
         )
+        if archive:
+            factors.insert(
+                0,
+                f"Acervo: {len(archive)} artigo(s) já ligados a este claim; "
+                f"{archive_hits} stance(s) reutilizada(s)",
+            )
         xref = CrossReference(
             root_article_id=root.id,
             claim_id=claim_id,

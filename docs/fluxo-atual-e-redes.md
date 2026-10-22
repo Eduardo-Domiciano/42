@@ -56,31 +56,26 @@ flowchart TD
 Entrada: usuário cola link → `POST /api/ingest/url` (`backend/app/api/routes.py`).
 
 1. **Fetch e parse** — `backend/app/services/fetch_article.py`  
-   HTML → título/autor/corpo/data (trafilatura), URL normalizada, tabela `articles`.
+   HTML → título/autor/corpo/data (trafilatura), URL normalizada, tabela `articles` + links citados (`article_outbound_links`). Se a URL já tem corpo e não veio `refresh`, reusa o artigo.
 
 2. **Resolver fonte** — `backend/source_profiles.yml` + `backend/catalog/bias_br.yml`  
    Ownership (grupo dono), Tier (nível de autoridade), Bias (viés). Catálogo curado — redes **não** substituem isso.
 
 3. **Tipo de conteúdo** — `backend/app/services/content_classifier.py`  
-   Regras/regex hoje (article, opinion, editorial, official_document, etc.). NN futura só como score auxiliar.
+   Regras/regex (article, opinion, editorial, official_document, etc.).
 
 4. **Claims (F3)** — `backend/app/services/claim_pipeline.py`  
-   Extrai afirmativas e scores (temporal, geo, partisan, distortion, support).  
-   Hoje: heurística (`heuristic_claims.py`) e/ou OpenRouter (`llm_client.py`).  
-   Clickbait neural (`nn_clickbait.py`) **soma** em `score_distortion` quando embeddings estão disponíveis.
+   Extrai afirmativas e scores; cache em `claim_assessments`. Clickbait NN soma em Distortion quando disponível.
 
-5. **Análise de fonte** — `backend/app/services/analyze.py`  
-   Perfil + claims → veredito preliminar isolado.
+5. **Análise + snapshot** — `analyze.py` + `analysis_cache.py`  
+   Veredito preliminar e narrativa; gravados em `article_analyses` (por `content_hash`). Se o hash bater, a API devolve `analysis_cached: true` sem recalcular.
 
 6. **Cross-reference (F4)** — `backend/app/services/cross_reference.py`  
-   Por claim: busca pares (local/web via `web_search.py`), classifica Stance em `stance.py` (overlap/negação).  
-   Agrega com Ownership, veto de fonte primária e Calibration (calibração F3 vs F4).  
-   **Complemento NN:** (a) `nn_embeddings.py` reordena candidatos do LIKE; (b) `nn_nli.py` (mDeBERTa) funde com a heurística em `stance.py` (`method=heuristic+nli`); Ownership/veto/calibração permanecem.
+   Peers do **acervo** (mesmo claim) primeiro; depois LIKE/lote/web. Stance pode vir do acervo (`method=acervo`). NN: embeddings + NLI como complemento.
 
-7. **Resumo narrativo** — `backend/app/services/narrative_summary.py`  
-   Parágrafos em português no campo `narrative_summary`. Pode citar quando NLI concordou ou divergiu da heurística.
+7. **Resumo** — narrativa do snapshot ou gerada e salva.
 
-8. **UI** — Angular exibe badges, claims, cruzamento e o resumo; método `heuristic+nli` quando a fusão NLI rodou.
+8. **UI** — badge “Acervo”, links citados, tabelas de claims/cruzamento.
 
 ---
 
