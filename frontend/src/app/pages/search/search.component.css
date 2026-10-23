@@ -819,6 +819,31 @@ input:focus {
   font-weight: 600;
 }
 
+.preview-block {
+  margin: 1rem 0;
+}
+
+.preview-block h4 {
+  margin: 0 0 0.4rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--steel-deep);
+}
+
+.tech-data {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--surface-border);
+}
+
+.tech-data > h3,
+.tech-data > h4 {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  color: var(--steel-deep);
+}
+
 .narrative {
   margin-top: 1.5rem;
   padding: 1.1rem 1.15rem;

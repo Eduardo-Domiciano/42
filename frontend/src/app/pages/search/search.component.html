@@ -235,6 +235,13 @@
           <span class="badge archive">Do acervo (análise em cache)</span>
         }
       </p>
+      @if (articleResult.body_preview) {
+        <div class="preview-block">
+          <h4>Preview do texto</h4>
+          <p class="preview">{{ articleResult.body_preview }}</p>
+        </div>
+      }
+
       @if (articleResult.outbound_links?.length) {
         <div class="outbound">
           <h4>Links citados</h4>
@@ -249,153 +256,6 @@
           </ul>
         </div>
       }
-      @if (articleResult.source) {
-        <p class="source">
-          Fonte: <strong>{{ articleResult.source.name }}</strong>
-          · {{ tierWord() }}:
-          {{ authorityTierLabel(articleResult.source.authority_tier) }}
-          @if (articleResult.source.ownership_name) {
-            · {{ ownershipWord() }}: {{ articleResult.source.ownership_name }}
-          }
-        </p>
-        @if (articleResult.source.bias_label) {
-          <p class="badges">
-            <span class="badge"
-              >{{ biasWord() }}: {{ biasLabel(articleResult.source.bias_label) }}</span
-            >
-            @if (articleResult.source.bias_score !== null) {
-              <span class="badge"
-                >{{ scoreWord() }}: {{ articleResult.source.bias_score | number: '1.2-2' }}</span
-              >
-            }
-            @if (articleResult.source.bias_catalog_version) {
-              <span class="badge"
-                >Catálogo (lista de fontes) v{{ articleResult.source.bias_catalog_version }}</span
-              >
-            }
-          </p>
-        }
-      }
-      @if (articleResult.analysis; as a) {
-        <div class="analysis">
-          <p>
-            <strong>Tipo:</strong> {{ contentTypeLabel(a.content_type_guess) }}
-            (confiança {{ a.content_type_confidence | percent: '1.0-0' }})
-            · método {{ methodLabel(a.analysis_method) }}
-          </p>
-          <p>
-            <strong>Veredito preliminar:</strong> {{ verdictLabel(a.preliminary_verdict) }}
-          </p>
-          <p>{{ a.source_partiality_note }}</p>
-          <p><strong>Temporal (coerência de datas):</strong> {{ a.temporal_coherence }}</p>
-          <ul>
-            @for (f of a.factors; track f) {
-              <li>{{ f }}</li>
-            }
-          </ul>
-        </div>
-      }
-      @if (articleResult.claims.length) {
-        <div class="claims">
-          <h4>{{ claimsWord() }} avaliados</h4>
-          <div class="table-wrap">
-            <table class="scores-table">
-              <thead>
-                <tr>
-                  <th scope="col">Claim (afirmativa)</th>
-                  <th scope="col">Veredito</th>
-                  <th scope="col">Confiança</th>
-                  <th scope="col">Temporal</th>
-                  <th scope="col">Geográfico</th>
-                  <th scope="col">Partidário</th>
-                  <th scope="col">Distorção</th>
-                  <th scope="col">Suporte</th>
-                  <th scope="col">Método</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (c of articleResult.claims; track c.id) {
-                  <tr>
-                    <td class="claim-cell">
-                      <span class="claim-text">{{ c.claim.canonical_text }}</span>
-                      @if (c.justification) {
-                        <span class="claim-just">{{ c.justification }}</span>
-                      }
-                    </td>
-                    <td>{{ verdictLabel(c.verdict) }}</td>
-                    <td class="num">{{ c.confidence | percent: '1.0-0' }}</td>
-                    <td class="num">{{ c.score_temporal | number: '1.2-2' }}</td>
-                    <td class="num">{{ c.score_geographic | number: '1.2-2' }}</td>
-                    <td class="num">{{ c.score_partisan | number: '1.2-2' }}</td>
-                    <td class="num">{{ c.score_distortion | number: '1.2-2' }}</td>
-                    <td class="num">{{ c.score_internal_support | number: '1.2-2' }}</td>
-                    <td>{{ methodLabel(c.method) }}</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        </div>
-      }
-      @if (articleResult.cross_references.length) {
-        <div class="xref">
-          <h4>{{ crossRefWord() }}</h4>
-          @for (x of articleResult.cross_references; track x.claim_id) {
-            <div class="xref-card">
-              <p class="claim-text">{{ x.claim_text }}</p>
-              <p class="badges">
-                <span class="badge"
-                  >F3: {{ verdictLabel(x.isolated_verdict) }}</span
-                >
-                <span class="badge"
-                  >{{ consensusWord() }}: {{ verdictLabel(x.consensus_verdict) }}</span
-                >
-                <span class="badge"
-                  >{{ calibrationWord() }}:
-                  {{ x.calibration_score | percent: '1.0-0' }}</span
-                >
-                @if (x.primary_veto) {
-                  <span class="badge warn">{{ vetoWord() }}</span>
-                }
-                <span class="badge"
-                  >{{ ownershipWord() }} independentes:
-                  {{ x.independent_voices }}</span
-                >
-              </p>
-              @if (x.evidences.length) {
-                <ul class="evidence-list">
-                  @for (e of x.evidences; track e.id) {
-                    <li>
-                      <a [href]="e.article_url" target="_blank" rel="noopener">{{
-                        e.article_title || e.article_url
-                      }}</a>
-                      · {{ stanceLabel(e.stance) }}
-                      @if (e.same_ownership) {
-                        <span class="warn-inline"
-                          >· mesmo {{ ownershipWord() }}</span
-                        >
-                      }
-                      @if (e.source) {
-                        <span> · {{ e.source.name }}</span>
-                      }
-                    </li>
-                  }
-                </ul>
-              } @else {
-                <p class="empty">Nenhuma evidência externa encontrada para este claim.</p>
-              }
-              <ul>
-                @for (f of x.factors; track f) {
-                  <li>{{ f }}</li>
-                }
-              </ul>
-            </div>
-          }
-        </div>
-      }
-      @if (articleResult.body_preview) {
-        <p class="preview">{{ articleResult.body_preview }}</p>
-      }
 
       @if (articleResult.narrative_summary) {
         <section class="narrative">
@@ -405,6 +265,154 @@
           }
         </section>
       }
+
+      <section class="tech-data">
+        <h3>Dados Técnicos</h3>
+        @if (articleResult.source) {
+          <p class="source">
+            Fonte: <strong>{{ articleResult.source.name }}</strong>
+            · {{ tierWord() }}:
+            {{ authorityTierLabel(articleResult.source.authority_tier) }}
+            @if (articleResult.source.ownership_name) {
+              · {{ ownershipWord() }}: {{ articleResult.source.ownership_name }}
+            }
+          </p>
+          @if (articleResult.source.bias_label) {
+            <p class="badges">
+              <span class="badge"
+                >{{ biasWord() }}: {{ biasLabel(articleResult.source.bias_label) }}</span
+              >
+              @if (articleResult.source.bias_score !== null) {
+                <span class="badge"
+                  >{{ scoreWord() }}: {{ articleResult.source.bias_score | number: '1.2-2' }}</span
+                >
+              }
+              @if (articleResult.source.bias_catalog_version) {
+                <span class="badge"
+                  >Catálogo (lista de fontes) v{{ articleResult.source.bias_catalog_version }}</span
+                >
+              }
+            </p>
+          }
+        }
+        @if (articleResult.analysis; as a) {
+          <div class="analysis">
+            <p>
+              <strong>Tipo:</strong> {{ contentTypeLabel(a.content_type_guess) }}
+              (confiança {{ a.content_type_confidence | percent: '1.0-0' }})
+              · método {{ methodLabel(a.analysis_method) }}
+            </p>
+            <p>
+              <strong>Veredito preliminar:</strong> {{ verdictLabel(a.preliminary_verdict) }}
+            </p>
+            <p>{{ a.source_partiality_note }}</p>
+            <p><strong>Temporal (coerência de datas):</strong> {{ a.temporal_coherence }}</p>
+            <ul>
+              @for (f of a.factors; track f) {
+                <li>{{ f }}</li>
+              }
+            </ul>
+          </div>
+        }
+        @if (articleResult.claims.length) {
+          <div class="claims">
+            <h4>{{ claimsWord() }} avaliados</h4>
+            <div class="table-wrap">
+              <table class="scores-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Claim (afirmativa)</th>
+                    <th scope="col">Veredito</th>
+                    <th scope="col">Confiança</th>
+                    <th scope="col">Temporal</th>
+                    <th scope="col">Geográfico</th>
+                    <th scope="col">Partidário</th>
+                    <th scope="col">Distorção</th>
+                    <th scope="col">Suporte</th>
+                    <th scope="col">Método</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (c of articleResult.claims; track c.id) {
+                    <tr>
+                      <td class="claim-cell">
+                        <span class="claim-text">{{ c.claim.canonical_text }}</span>
+                        @if (c.justification) {
+                          <span class="claim-just">{{ c.justification }}</span>
+                        }
+                      </td>
+                      <td>{{ verdictLabel(c.verdict) }}</td>
+                      <td class="num">{{ c.confidence | percent: '1.0-0' }}</td>
+                      <td class="num">{{ c.score_temporal | number: '1.2-2' }}</td>
+                      <td class="num">{{ c.score_geographic | number: '1.2-2' }}</td>
+                      <td class="num">{{ c.score_partisan | number: '1.2-2' }}</td>
+                      <td class="num">{{ c.score_distortion | number: '1.2-2' }}</td>
+                      <td class="num">{{ c.score_internal_support | number: '1.2-2' }}</td>
+                      <td>{{ methodLabel(c.method) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        }
+        @if (articleResult.cross_references.length) {
+          <div class="xref">
+            <h4>{{ crossRefWord() }}</h4>
+            @for (x of articleResult.cross_references; track x.claim_id) {
+              <div class="xref-card">
+                <p class="claim-text">{{ x.claim_text }}</p>
+                <p class="badges">
+                  <span class="badge"
+                    >F3: {{ verdictLabel(x.isolated_verdict) }}</span
+                  >
+                  <span class="badge"
+                    >{{ consensusWord() }}: {{ verdictLabel(x.consensus_verdict) }}</span
+                  >
+                  <span class="badge"
+                    >{{ calibrationWord() }}:
+                    {{ x.calibration_score | percent: '1.0-0' }}</span
+                  >
+                  @if (x.primary_veto) {
+                    <span class="badge warn">{{ vetoWord() }}</span>
+                  }
+                  <span class="badge"
+                    >{{ ownershipWord() }} independentes:
+                    {{ x.independent_voices }}</span
+                  >
+                </p>
+                @if (x.evidences.length) {
+                  <ul class="evidence-list">
+                    @for (e of x.evidences; track e.id) {
+                      <li>
+                        <a [href]="e.article_url" target="_blank" rel="noopener">{{
+                          e.article_title || e.article_url
+                        }}</a>
+                        · {{ stanceLabel(e.stance) }}
+                        @if (e.same_ownership) {
+                          <span class="warn-inline"
+                            >· mesmo {{ ownershipWord() }}</span
+                          >
+                        }
+                        @if (e.source) {
+                          <span> · {{ e.source.name }}</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="empty">Nenhuma evidência externa encontrada para este claim.</p>
+                }
+                <ul>
+                  @for (f of x.factors; track f) {
+                    <li>{{ f }}</li>
+                  }
+                </ul>
+              </div>
+            }
+          </div>
+        }
+      </section>
     </article>
   </section>
 }
@@ -535,16 +543,13 @@
                     <span class="badge archive">Do acervo</span>
                   }
                 </p>
-                @if (item.source) {
-                  <p class="source">
-                    Fonte: <strong>{{ item.source.name }}</strong>
-                    · {{ tierWord() }}:
-                    {{ authorityTierLabel(item.source.authority_tier) }}
-                    @if (item.source.ownership_name) {
-                      · {{ ownershipWord() }}: {{ item.source.ownership_name }}
-                    }
-                  </p>
+                @if (item.body_preview || item.excerpt) {
+                  <div class="preview-block">
+                    <h4>Preview do texto</h4>
+                    <p class="preview">{{ item.body_preview || item.excerpt }}</p>
+                  </div>
                 }
+
                 @if (item.outbound_links?.length) {
                   <div class="outbound">
                     <h4>Links citados</h4>
@@ -563,120 +568,10 @@
                     </ul>
                   </div>
                 }
-                @if (item.analysis; as a) {
-                  <div class="analysis">
-                    <p class="badges">
-                      <span class="badge">{{
-                        contentTypeLabel(a.content_type_guess)
-                      }}</span>
-                      @if (a.bias_label) {
-                        <span class="badge"
-                          >{{ biasWord() }}: {{ biasLabel(a.bias_label) }}</span
-                        >
-                      }
-                      <span class="badge">{{
-                        verdictLabel(a.preliminary_verdict)
-                      }}</span>
-                    </p>
-                    <p>{{ a.source_partiality_note }}</p>
-                  </div>
-                }
-                @if (item.claims.length) {
-                  <div class="claims">
-                    <h4>{{ claimsWord() }} ({{ item.claims.length }})</h4>
-                    <div class="table-wrap">
-                      <table class="scores-table">
-                        <thead>
-                          <tr>
-                            <th scope="col">Claim (afirmativa)</th>
-                            <th scope="col">Veredito</th>
-                            <th scope="col">Confiança</th>
-                            <th scope="col">Temporal</th>
-                            <th scope="col">Geográfico</th>
-                            <th scope="col">Partidário</th>
-                            <th scope="col">Distorção</th>
-                            <th scope="col">Suporte</th>
-                            <th scope="col">Método</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @for (c of item.claims; track c.id) {
-                            <tr>
-                              <td class="claim-cell">
-                                <span class="claim-text">{{
-                                  c.claim.canonical_text
-                                }}</span>
-                              </td>
-                              <td>{{ verdictLabel(c.verdict) }}</td>
-                              <td class="num">
-                                {{ c.confidence | percent: '1.0-0' }}
-                              </td>
-                              <td class="num">
-                                {{ c.score_temporal | number: '1.2-2' }}
-                              </td>
-                              <td class="num">
-                                {{ c.score_geographic | number: '1.2-2' }}
-                              </td>
-                              <td class="num">
-                                {{ c.score_partisan | number: '1.2-2' }}
-                              </td>
-                              <td class="num">
-                                {{ c.score_distortion | number: '1.2-2' }}
-                              </td>
-                              <td class="num">
-                                {{ c.score_internal_support | number: '1.2-2' }}
-                              </td>
-                              <td>{{ methodLabel(c.method) }}</td>
-                            </tr>
-                          }
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                }
-                @if (item.cross_references.length) {
-                  <div class="xref">
-                    <h4>{{ crossRefWord() }} ({{ item.cross_references.length }})</h4>
-                    <div class="table-wrap">
-                      <table class="scores-table compact">
-                        <thead>
-                          <tr>
-                            <th scope="col">Claim</th>
-                            <th scope="col">F3</th>
-                            <th scope="col">{{ consensusWord() }}</th>
-                            <th scope="col">{{ calibrationWord() }}</th>
-                            <th scope="col">Vozes</th>
-                            <th scope="col">Evidências</th>
-                            <th scope="col">{{ vetoWord() }}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          @for (x of item.cross_references; track x.claim_id) {
-                            <tr>
-                              <td class="claim-cell">
-                                <span class="claim-text">{{ x.claim_text }}</span>
-                              </td>
-                              <td>{{ verdictLabel(x.isolated_verdict) }}</td>
-                              <td>{{ verdictLabel(x.consensus_verdict) }}</td>
-                              <td class="num">
-                                {{ x.calibration_score | percent: '1.0-0' }}
-                              </td>
-                              <td class="num">{{ x.independent_voices }}</td>
-                              <td class="num">{{ x.evidences.length }}</td>
-                              <td>{{ x.primary_veto ? 'Sim' : '—' }}</td>
-                            </tr>
-                          }
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                }
-                @if (item.excerpt) {
-                  <p class="preview">{{ item.excerpt }}</p>
-                }
+
                 @if (item.narrative_summary) {
                   <section class="narrative compact">
-                    <h4>Resumo desta matéria</h4>
+                    <h4>Resumo da análise</h4>
                     @for (
                       p of summaryParagraphs(item.narrative_summary);
                       track $index
@@ -685,6 +580,130 @@
                     }
                   </section>
                 }
+
+                <section class="tech-data">
+                  <h4>Dados Técnicos</h4>
+                  @if (item.source) {
+                    <p class="source">
+                      Fonte: <strong>{{ item.source.name }}</strong>
+                      · {{ tierWord() }}:
+                      {{ authorityTierLabel(item.source.authority_tier) }}
+                      @if (item.source.ownership_name) {
+                        · {{ ownershipWord() }}: {{ item.source.ownership_name }}
+                      }
+                    </p>
+                  }
+                  @if (item.analysis; as a) {
+                    <div class="analysis">
+                      <p>
+                        <strong>Tipo:</strong>
+                        {{ contentTypeLabel(a.content_type_guess) }}
+                        (confiança {{ a.content_type_confidence | percent: '1.0-0' }})
+                      </p>
+                      <p class="badges">
+                        @if (a.bias_label) {
+                          <span class="badge"
+                            >{{ biasWord() }}: {{ biasLabel(a.bias_label) }}</span
+                          >
+                        }
+                        <span class="badge">{{
+                          verdictLabel(a.preliminary_verdict)
+                        }}</span>
+                      </p>
+                      <p>{{ a.source_partiality_note }}</p>
+                    </div>
+                  }
+                  @if (item.claims.length) {
+                    <div class="claims">
+                      <h4>{{ claimsWord() }} ({{ item.claims.length }})</h4>
+                      <div class="table-wrap">
+                        <table class="scores-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Claim (afirmativa)</th>
+                              <th scope="col">Veredito</th>
+                              <th scope="col">Confiança</th>
+                              <th scope="col">Temporal</th>
+                              <th scope="col">Geográfico</th>
+                              <th scope="col">Partidário</th>
+                              <th scope="col">Distorção</th>
+                              <th scope="col">Suporte</th>
+                              <th scope="col">Método</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (c of item.claims; track c.id) {
+                              <tr>
+                                <td class="claim-cell">
+                                  <span class="claim-text">{{
+                                    c.claim.canonical_text
+                                  }}</span>
+                                </td>
+                                <td>{{ verdictLabel(c.verdict) }}</td>
+                                <td class="num">
+                                  {{ c.confidence | percent: '1.0-0' }}
+                                </td>
+                                <td class="num">
+                                  {{ c.score_temporal | number: '1.2-2' }}
+                                </td>
+                                <td class="num">
+                                  {{ c.score_geographic | number: '1.2-2' }}
+                                </td>
+                                <td class="num">
+                                  {{ c.score_partisan | number: '1.2-2' }}
+                                </td>
+                                <td class="num">
+                                  {{ c.score_distortion | number: '1.2-2' }}
+                                </td>
+                                <td class="num">
+                                  {{ c.score_internal_support | number: '1.2-2' }}
+                                </td>
+                                <td>{{ methodLabel(c.method) }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
+                  @if (item.cross_references.length) {
+                    <div class="xref">
+                      <h4>{{ crossRefWord() }} ({{ item.cross_references.length }})</h4>
+                      <div class="table-wrap">
+                        <table class="scores-table compact">
+                          <thead>
+                            <tr>
+                              <th scope="col">Claim</th>
+                              <th scope="col">F3</th>
+                              <th scope="col">{{ consensusWord() }}</th>
+                              <th scope="col">{{ calibrationWord() }}</th>
+                              <th scope="col">Vozes</th>
+                              <th scope="col">Evidências</th>
+                              <th scope="col">{{ vetoWord() }}</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (x of item.cross_references; track x.claim_id) {
+                              <tr>
+                                <td class="claim-cell">
+                                  <span class="claim-text">{{ x.claim_text }}</span>
+                                </td>
+                                <td>{{ verdictLabel(x.isolated_verdict) }}</td>
+                                <td>{{ verdictLabel(x.consensus_verdict) }}</td>
+                                <td class="num">
+                                  {{ x.calibration_score | percent: '1.0-0' }}
+                                </td>
+                                <td class="num">{{ x.independent_voices }}</td>
+                                <td class="num">{{ x.evidences.length }}</td>
+                                <td>{{ x.primary_veto ? 'Sim' : '—' }}</td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
+                </section>
               </div>
             }
           </li>
