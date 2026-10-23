@@ -28,3 +28,24 @@ def ensure_sqlite_columns(engine: Engine) -> None:
                     conn.execute(
                         text(f"ALTER TABLE sources ADD COLUMN {name} {sql_type}")
                     )
+
+        # Assessments duplicados (mesmo artigo + mesmo claim) → um só + índice único
+        if "claim_assessments" in tables:
+            conn.execute(
+                text(
+                    """
+                    DELETE FROM claim_assessments
+                    WHERE id NOT IN (
+                        SELECT MIN(id) FROM claim_assessments
+                        GROUP BY article_id, claim_id
+                    )
+                    """
+                )
+            )
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS "
+                    "uq_claim_assessment_article_claim "
+                    "ON claim_assessments (article_id, claim_id)"
+                )
+            )

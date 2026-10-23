@@ -59,18 +59,16 @@ def _local_candidates(
     clauses = []
 
     if toks:
-        # OR no banco (recall); o filtro de relevância corta ruído depois
-        like_clauses = []
-        for term in toks[:6]:
+        def _term_clause(term: str):
             like = f"%{term}%"
-            like_clauses.append(
-                or_(
-                    Article.title.ilike(like),
-                    Article.body.ilike(like),
-                    Article.excerpt.ilike(like),
-                )
+            return or_(
+                Article.title.ilike(like),
+                Article.body.ilike(like),
+                Article.excerpt.ilike(like),
             )
-        clauses.append(or_(*like_clauses))
+
+        # OR no pool (recall); precisão fica com filtro lexical + juiz LLM de contexto
+        clauses.append(or_(*[_term_clause(t) for t in toks[:6]]))
     else:
         like = f"%{topic.strip()}%"
         clauses.append(
@@ -103,12 +101,14 @@ def _article_out(
     article: Article,
     *,
     allow_llm: bool,
+    allow_narrative_llm: bool,
     peer_pool: list[Article],
 ) -> ArticleOut:
     return build_article_out(
         db,
         article,
         allow_llm=allow_llm,
+        allow_narrative_llm=allow_narrative_llm,
         run_crossref=settings.crossref_enabled and settings.crossref_on_topic,
         peer_pool=peer_pool,
     )
@@ -207,9 +207,15 @@ def run_topic_search(
     claims_map = {}
     xrefs_map = {}
     for idx, article in enumerate(collected):
+        # Particiona LLM: claims e resumo humano só nos primeiros N (um de cada vez via lock)
         allow_llm = idx < settings.claim_llm_max_per_topic
+        allow_narrative_llm = idx < settings.narrative_llm_max_per_topic
         out = _article_out(
-            db, article, allow_llm=allow_llm, peer_pool=collected
+            db,
+            article,
+            allow_llm=allow_llm,
+            allow_narrative_llm=allow_narrative_llm,
+            peer_pool=collected,
         )
         outs.append(out)
         claims_map[article.id] = out.claims

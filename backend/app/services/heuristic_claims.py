@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 from app.models import Article
@@ -68,9 +69,38 @@ class ClaimScores:
     excerpts: list[str]
 
 
+def normalize_claim_text(text: str) -> str:
+    """Minúsculas, sem acento/pontuação — base do fingerprint e near-dup."""
+    if not text:
+        return ""
+    norm = unicodedata.normalize("NFD", text.strip().lower())
+    norm = "".join(c for c in norm if unicodedata.category(c) != "Mn")
+    norm = re.sub(r"[^\w\s]", " ", norm)
+    return re.sub(r"\s+", " ", norm).strip()
+
+
 def fingerprint(text: str) -> str:
-    norm = re.sub(r"\s+", " ", text.strip().lower())
-    return hashlib.sha256(norm.encode("utf-8")).hexdigest()[:32]
+    return hashlib.sha256(normalize_claim_text(text).encode("utf-8")).hexdigest()[:32]
+
+
+def _claim_tokens(text: str) -> set[str]:
+    return {t for t in normalize_claim_text(text).split() if len(t) >= 3}
+
+
+def claims_near_duplicate(a: str, b: str, *, jaccard: float = 0.72) -> bool:
+    """True se duas frases são a mesma afirmativa (idênticas ou quase)."""
+    na, nb = normalize_claim_text(a), normalize_claim_text(b)
+    if not na or not nb:
+        return False
+    if na == nb:
+        return True
+    shorter, longer = (na, nb) if len(na) <= len(nb) else (nb, na)
+    if len(shorter) >= 36 and shorter in longer and len(shorter) / len(longer) >= 0.68:
+        return True
+    ta, tb = _claim_tokens(na), _claim_tokens(nb)
+    if len(ta) < 3 or len(tb) < 3:
+        return False
+    return len(ta & tb) / len(ta | tb) >= jaccard
 
 
 def extract_claims_heuristic(article: Article, limit: int = 6) -> list[RawClaim]:
@@ -92,6 +122,8 @@ def extract_claims_heuristic(article: Article, limit: int = 6) -> list[RawClaim]
             break
         fp = fingerprint(sent)
         if fp in seen:
+            continue
+        if any(claims_near_duplicate(sent, c.text) for c in claims):
             continue
         seen.add(fp)
 

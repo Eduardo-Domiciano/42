@@ -9,10 +9,11 @@ services:
     environment:
       DATABASE_URL: sqlite:////data/veracidade.db
       CORS_ORIGINS: "http://localhost:8080,http://127.0.0.1:8080,http://localhost:4200,http://127.0.0.1:4200"
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
-      CLAIM_USE_LLM: ${CLAIM_USE_LLM:-true}
-      CLAIM_LLM_MAX_PER_TOPIC: ${CLAIM_LLM_MAX_PER_TOPIC:-3}
+      # LLM desligada (heurísticas). Para reativar no futuro: CLAIM_USE_LLM / NARRATIVE_USE_LLM / TOPIC_RELEVANCE_USE_LLM
+      LLM_PROVIDER: ${LLM_PROVIDER:-none}
+      CLAIM_USE_LLM: ${CLAIM_USE_LLM:-false}
+      TOPIC_RELEVANCE_USE_LLM: ${TOPIC_RELEVANCE_USE_LLM:-false}
+      NARRATIVE_USE_LLM: ${NARRATIVE_USE_LLM:-false}
       NN_ENABLED: ${NN_ENABLED:-true}
       NN_NLI_ENABLED: ${NN_NLI_ENABLED:-true}
       NN_EMBEDDINGS_ENABLED: ${NN_EMBEDDINGS_ENABLED:-true}

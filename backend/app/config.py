@@ -23,23 +23,39 @@ class Settings(BaseSettings):
     topic_search_max_results: int = 12
     # Poucos fetches: DDG + sites BR demoram; nginx/proxy estourava em 120s.
     topic_search_web_candidates: int = 14
-    topic_min_relevance: float = 0.32
+    # Limiares lexicais (aceitação clara). Zona cinza vai para LLM ou soft.
+    topic_min_relevance: float = 0.30
     topic_min_semantic: float = 0.48
-    topic_min_lexical_for_semantic: float = 0.28
+    topic_min_lexical_for_semantic: float = 0.26
+    topic_soft_relevance: float = 0.20
     topic_require_published_at_in_range: bool = True
+    # Juiz LLM de relevância — desligado (heurística + soft lexical)
+    topic_relevance_use_llm: bool = False
+    topic_relevance_llm_model: str = ""
+    topic_relevance_llm_max: int = 8
+    topic_relevance_llm_timeout: float = 90.0
     http_timeout_seconds: float = 18.0
     # ASCII only: httpx/headers rejeitam caracteres como ④②
     user_agent: str = (
         "Mozilla/5.0 (compatible; Projeto42/0.1; +local; pesquisa educacional)"
     )
 
-    # F3 — claims / LLM
+    # LLM opcional (none | local | openrouter) — padrão: desligada
+    llm_provider: str = "none"
+    llm_base_url: str = ""
+    llm_api_key: str = ""
+    local_llm_model: str = ""
+
     openrouter_api_key: str = ""
     openrouter_model: str = "openai/gpt-4o-mini"
-    claim_use_llm: bool = True
+    claim_use_llm: bool = False
     claim_max_per_article: int = 5
-    claim_llm_max_per_topic: int = 3
+    claim_llm_max_per_topic: int = 0
     llm_timeout_seconds: float = 60.0
+    narrative_use_llm: bool = False
+    narrative_llm_model: str = ""
+    narrative_llm_timeout: float = 60.0
+    narrative_llm_max_per_topic: int = 0
 
     # F4 — cruzamento
     crossref_enabled: bool = True

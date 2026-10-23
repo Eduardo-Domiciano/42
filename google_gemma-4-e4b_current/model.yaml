@@ -1,0 +1,69 @@
+# model.yaml is an open standard for defining cross-platform, composable AI models
+# Learn more at https://modelyaml.org
+model: google/gemma-4-e4b
+base:
+  - key: lmstudio-community/gemma-4-e4b-it-gguf
+    sources:
+      - type: huggingface
+        user: lmstudio-community
+        repo: gemma-4-E4B-it-GGUF
+  - key: lmstudio-community/gemma-4-e4b-it-mlx-4bit
+    sources:
+      - type: huggingface
+        user: lmstudio-community
+        repo: gemma-4-E4B-it-MLX-4bit
+  - key: lmstudio-community/gemma-4-e4b-it-mlx-5bit
+    sources:
+      - type: huggingface
+        user: lmstudio-community
+        repo: gemma-4-E4B-it-MLX-5bit
+  - key: lmstudio-community/gemma-4-e4b-it-mlx-6bit
+    sources:
+      - type: huggingface
+        user: lmstudio-community
+        repo: gemma-4-E4B-it-MLX-6bit
+  - key: lmstudio-community/gemma-4-e4b-it-mlx-8bit
+    sources:
+      - type: huggingface
+        user: lmstudio-community
+        repo: gemma-4-E4B-it-MLX-8bit
+config:
+  operation:
+    fields:
+      - key: llm.prediction.temperature
+        value: 1.0
+      - key: llm.prediction.topPSampling
+        value:
+          checked: true
+          value: 0.95
+      - key: llm.prediction.topKSampling
+        value: 64
+      - key: llm.prediction.reasoning.parsing
+        value:
+          enabled: true
+          startString: "<|channel>thought"
+          endString: "<channel|>"
+customFields:
+  - key: enableThinking
+    displayName: Enable Thinking
+    description: Controls whether the model will think before replying
+    type: boolean
+    defaultValue: true
+    effects:
+      - type: setJinjaVariable
+        variable: enable_thinking
+metadataOverrides:
+  domain: llm
+  architectures:
+    - gemma4
+  compatibilityTypes:
+    - gguf
+    - safetensors
+  paramsStrings:
+    - 7.9B
+  minMemoryUsageBytes: 5900000000
+  contextLengths:
+    - 131072
+  vision: true
+  reasoning: true
+  trainedForToolUse: true

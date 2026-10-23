@@ -16,6 +16,7 @@ from app.schemas import (
     SourceOut,
 )
 from app.services.fetch_article import fetch_and_store_article, normalize_url
+from app.services.heuristic_claims import claims_near_duplicate
 from app.services.nn_embeddings import rank_articles_by_claim
 from app.services.nn_runtime import get_embedder, nn_enabled
 from app.services.stance import classify_stance
@@ -314,6 +315,47 @@ def _aggregate(
     return consensus, round(calibration, 3), primary_veto, independent, factors
 
 
+def _unique_assessments(
+    assessments: list[ClaimAssessmentOut],
+) -> list[ClaimAssessmentOut]:
+    """Uma entrada por claim_id e sem frases quase iguais."""
+    by_id: dict[int, ClaimAssessmentOut] = {}
+    for a in assessments:
+        prev = by_id.get(a.claim.id)
+        if prev is None or a.confidence > prev.confidence:
+            by_id[a.claim.id] = a
+    ordered = sorted(
+        by_id.values(),
+        key=lambda a: (a.confidence, a.score_internal_support),
+        reverse=True,
+    )
+    unique: list[ClaimAssessmentOut] = []
+    for a in ordered:
+        if any(
+            claims_near_duplicate(a.claim.canonical_text, u.claim.canonical_text)
+            for u in unique
+        ):
+            continue
+        unique.append(a)
+    unique.sort(key=lambda a: a.id)
+    return unique
+
+
+def _dedupe_cross_outs(outs: list[CrossReferenceOut]) -> list[CrossReferenceOut]:
+    by_claim: dict[int, CrossReferenceOut] = {}
+    for x in outs:
+        prev = by_claim.get(x.claim_id)
+        if prev is None or x.calibration_score > prev.calibration_score:
+            by_claim[x.claim_id] = x
+    ordered = list(by_claim.values())
+    unique: list[CrossReferenceOut] = []
+    for x in ordered:
+        if any(claims_near_duplicate(x.claim_text, u.claim_text) for u in unique):
+            continue
+        unique.append(x)
+    return unique
+
+
 def run_cross_reference_for_article(
     db: Session,
     root: Article,
@@ -326,6 +368,7 @@ def run_cross_reference_for_article(
     if not settings.crossref_enabled or not assessments:
         return []
 
+    assessments = _unique_assessments(assessments)
     outs: list[CrossReferenceOut] = []
 
     for assessment in assessments[: settings.claim_max_per_article]:
@@ -434,7 +477,7 @@ def run_cross_reference_for_article(
         outs.append(_cross_out(db, xref))
 
     db.commit()
-    return outs
+    return _dedupe_cross_outs(outs)
 
 
 def _cross_out(db: Session, xref: CrossReference) -> CrossReferenceOut:

@@ -290,6 +290,13 @@ input:focus {
   color: var(--steel-deep);
 }
 
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-left: auto;
+}
+
 .info-btn {
   flex-shrink: 0;
   width: 2.1rem;
@@ -424,6 +431,35 @@ input:focus {
   font-size: 0.9rem;
   color: var(--ink-soft);
   line-height: 1.45;
+}
+
+.params-section-title {
+  margin: 1.1rem 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.params-section-title.accept {
+  color: var(--steel-deep);
+}
+
+.params-section-title.discard {
+  color: var(--brick-deep);
+}
+
+.params-list {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.45rem;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.params-list li::marker {
+  color: var(--mustard);
 }
 
 @keyframes modal-fade {

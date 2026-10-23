@@ -17,7 +17,20 @@ from app.services.analysis_cache import (
 from app.services.analyze import analyze_article
 from app.services.claim_pipeline import ensure_claim_assessments
 from app.services.cross_reference import run_cross_reference_for_article
+from app.services.llm_client import llm_configured
 from app.services.narrative_summary import build_article_narrative
+
+
+def _narrative_looks_technical(text: str) -> bool:
+    t = (text or "").lower()
+    markers = (
+        "claims (afirmativas)",
+        "cross-reference (cruzamento",
+        "calibration (calibração",
+        "vereditos isolados (f3)",
+        "ownership (grupo dono)",
+    )
+    return any(m in t for m in markers)
 
 
 def build_article_out(
@@ -26,10 +39,14 @@ def build_article_out(
     *,
     run_claims: bool = True,
     allow_llm: bool = True,
+    allow_narrative_llm: bool | None = None,
     run_crossref: bool = True,
     peer_pool: list[Article] | None = None,
     force: bool = False,
 ) -> ArticleOut:
+    # Claims LLM e resumo LLM podem ser particionados (tema: só o 1º artigo)
+    use_narrative_llm = allow_llm if allow_narrative_llm is None else allow_narrative_llm
+
     claims = []
     if run_claims:
         claims = ensure_claim_assessments(
@@ -57,6 +74,18 @@ def build_article_out(
     if snap:
         analysis = snapshot_to_analysis_out(snap)
         narrative = snap.narrative_summary or ""
+        # Reescreve resumo antigo com jargão → prosa simples (sem LLM)
+        if _narrative_looks_technical(narrative):
+            narrative = build_article_narrative(
+                title=article.title,
+                source=source_out,
+                analysis=analysis,
+                claims=claims,
+                cross_references=xrefs,
+                allow_llm=use_narrative_llm,
+            )
+            snap.narrative_summary = narrative
+            db.commit()
         cached = True
     else:
         if force:
@@ -68,6 +97,7 @@ def build_article_out(
             analysis=analysis,
             claims=claims,
             cross_references=xrefs,
+            allow_llm=use_narrative_llm,
         )
         save_snapshot(db, article, analysis, narrative, replace_all=force)
         cached = False

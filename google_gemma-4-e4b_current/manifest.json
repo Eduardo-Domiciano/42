@@ -1,0 +1,46 @@
+{
+  "type": "model",
+  "owner": "google",
+  "name": "gemma-4-e4b",
+  "dependencies": [
+    {
+      "type": "model",
+      "purpose": "baseModel",
+      "modelKeys": [
+        "lmstudio-community/gemma-4-e4b-it-gguf",
+        "lmstudio-community/gemma-4-e4b-it-mlx-4bit",
+        "lmstudio-community/gemma-4-e4b-it-mlx-5bit",
+        "lmstudio-community/gemma-4-e4b-it-mlx-6bit",
+        "lmstudio-community/gemma-4-e4b-it-mlx-8bit"
+      ],
+      "sources": [
+        {
+          "type": "huggingface",
+          "user": "lmstudio-community",
+          "repo": "gemma-4-E4B-it-GGUF"
+        },
+        {
+          "type": "huggingface",
+          "user": "lmstudio-community",
+          "repo": "gemma-4-E4B-it-MLX-4bit"
+        },
+        {
+          "type": "huggingface",
+          "user": "lmstudio-community",
+          "repo": "gemma-4-E4B-it-MLX-5bit"
+        },
+        {
+          "type": "huggingface",
+          "user": "lmstudio-community",
+          "repo": "gemma-4-E4B-it-MLX-6bit"
+        },
+        {
+          "type": "huggingface",
+          "user": "lmstudio-community",
+          "repo": "gemma-4-E4B-it-MLX-8bit"
+        }
+      ]
+    }
+  ],
+  "revision": 7
+}

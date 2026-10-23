@@ -27,10 +27,17 @@ router = APIRouter(prefix="/api")
 def health() -> dict[str, object]:
     from app.services.nn_runtime import nli_status
 
+    from app.services.llm_client import effective_model, llm_provider
+
     return {
         "status": "ok",
         "llm_configured": llm_configured(),
+        "llm_provider": llm_provider(),
+        "llm_model": effective_model(),
         "claim_use_llm": settings.claim_use_llm,
+        "topic_relevance_use_llm": settings.topic_relevance_use_llm,
+        "topic_relevance_llm_model": settings.topic_relevance_llm_model,
+        "narrative_use_llm": settings.narrative_use_llm,
         "crossref_enabled": settings.crossref_enabled,
         "nn": nli_status(),
         "analysis_archive": True,
@@ -74,8 +81,19 @@ def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> Arti
 def search_topic(
     payload: TopicSearchRequest, db: Session = Depends(get_db)
 ) -> TopicQueryOut:
+    from dateutil.relativedelta import relativedelta
+
     if payload.date_from and payload.date_to and payload.date_from > payload.date_to:
         raise HTTPException(status_code=400, detail="date_from não pode ser após date_to")
+    if (
+        payload.date_from
+        and payload.date_to
+        and payload.date_to > payload.date_from + relativedelta(months=1)
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="O intervalo entre De e Até não pode passar de 1 mês",
+        )
     return run_topic_search(
         db,
         topic=payload.topic,

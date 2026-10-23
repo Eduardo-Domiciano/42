@@ -37,6 +37,24 @@ export class SearchComponent {
   expandedArticleIds = new Set<number>();
 
   glossaryOpen = false;
+  paramsOpen = false;
+
+  /** Critérios de aceite na busca por tema (espelha o backend). */
+  readonly paramsRelevant: string[] = [
+    'Camada 1 (claro sim): tokens do tema no texto + score lexical ≥ 0,30 (título vale mais que corpo).',
+    'Também aceita: frase do tema no texto; muitos tokens no título; ou embeddings (semântico ≥ 0,48) com algum overlap.',
+    'Camada 2 (zona cinza): soft lexical — algum overlap real e score ≥ 0,20.',
+    'Período De/Até/uma data: publicação do artigo dentro do intervalo (máx. 1 mês entre De e Até).',
+  ];
+
+  /** Critérios de descarte na busca por tema. */
+  readonly paramsDiscarded: string[] = [
+    'Zero tokens do tema e score muito baixo → lixo óbvio, descartado sem LLM.',
+    'Soft lexical não alcançado (poucos tokens / score baixo).',
+    'Com período: sem data de publicação ou data fora do intervalo.',
+    'Busca web bloqueada (DuckDuckGo rate-limit) → sem URLs novas; só acervo local entra no filtro.',
+    'Falha ao baixar a página (fetch) → URL não vira artigo.',
+  ];
 
   /** Termos da UI com significado curto (EN + PT). */
   readonly glossaryEntries: GlossaryEntry[] = [
@@ -58,7 +76,7 @@ export class SearchComponent {
     {
       term: 'Tabela Claims (colunas)',
       meaning:
-        'Cada linha é uma afirmativa. Claim = texto canônico. Veredito = conclusão F3 isolada. Conf. = confiança no veredito (0%–100%). Temporal / Geo / Partisan / Distortion / Support = notas 0,00–1,00. Método = como foi calculado (heurística, LLM, NLI…).',
+        'Cada linha é uma afirmativa. Claim = texto canônico. Veredito = conclusão isolada. Confiança = certeza do veredito (0%–100%). Temporal / Geográfico / Partidário / Distorção / Suporte = notas 0,00–1,00. Método = como foi calculado (heurística, LLM, NLI…).',
     },
     {
       term: 'Escala das notas (mín. e máx.)',
@@ -71,29 +89,29 @@ export class SearchComponent {
         '0,00 = sem data/período útil. 1,00 = afirmativa bem ancorada no tempo (data no texto e/ou data de publicação do artigo). Quanto maior, mais clara a “quando”.',
     },
     {
-      term: 'Geo (âncora geográfica)',
+      term: 'Geográfico (âncora de lugar)',
       meaning:
         '0,00 = quase sem lugar/instituição. 1,00 = forte âncora de local ou entidade (ex.: Brasil, STF, Brasília). Ajuda a situar o “onde / quem institucional”.',
     },
     {
-      term: 'Partisan (sinal partidário)',
+      term: 'Partidário (sinal político)',
       meaning:
         '0,00 = pouco framing político explícito. 1,00 = muitos marcadores partidários/polêmica. Aqui, alto = mais risco de enquadramento político — não é “nota boa”.',
     },
     {
-      term: 'Distortion (distorção / clickbait)',
+      term: 'Distorção (clickbait / sensacionalismo)',
       meaning:
         '0,00 = título e corpo alinhados, tom sóbrio. 1,00 = sensacionalismo ou título pouco coerente com o corpo. Alto = alerta de distorção.',
     },
     {
-      term: 'Support (suporte interno)',
+      term: 'Suporte (evidência interna)',
       meaning:
         '0,00 = quase sem evidência dentro do próprio artigo. 1,00 = números, citações, links ou trechos que sustentam a afirmativa no texto. Alto = mais lastro interno (ainda sem cruzar fontes externas).',
     },
     {
-      term: 'Conf. (confiança do veredito F3)',
+      term: 'Confiança (do veredito)',
       meaning:
-        '0% = veredito muito incerto. 100% = método está bem seguro daquele veredito isolado. Não prova verdade absoluta; só mede certeza da avaliação F3.',
+        '0% = veredito muito incerto. 100% = método está bem seguro daquele veredito isolado. Não prova verdade absoluta; só mede certeza da avaliação das afirmativas.',
     },
     {
       term: 'Cross-reference / F4 (cruzamento)',
@@ -146,17 +164,43 @@ export class SearchComponent {
   onEscape(): void {
     if (this.glossaryOpen) {
       this.closeGlossary();
+    } else if (this.paramsOpen) {
+      this.closeParams();
     }
   }
 
-  openGlossary(): void {
-    this.glossaryOpen = true;
+  private lockBodyScroll(): void {
     document.body.style.overflow = 'hidden';
+  }
+
+  private unlockBodyScroll(): void {
+    document.body.style.overflow = '';
+  }
+
+  openGlossary(): void {
+    this.paramsOpen = false;
+    this.glossaryOpen = true;
+    this.lockBodyScroll();
   }
 
   closeGlossary(): void {
     this.glossaryOpen = false;
-    document.body.style.overflow = '';
+    if (!this.paramsOpen) {
+      this.unlockBodyScroll();
+    }
+  }
+
+  openParams(): void {
+    this.glossaryOpen = false;
+    this.paramsOpen = true;
+    this.lockBodyScroll();
+  }
+
+  closeParams(): void {
+    this.paramsOpen = false;
+    if (!this.glossaryOpen) {
+      this.unlockBodyScroll();
+    }
   }
 
   setMode(mode: SearchMode): void {
@@ -336,6 +380,18 @@ export class SearchComponent {
     return sections;
   }
 
+  /** True se Até passa de 1 mês depois de De. */
+  private exceedsOneMonth(from: string, to: string): boolean {
+    const start = new Date(`${from}T00:00:00`);
+    const end = new Date(`${to}T00:00:00`);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return false;
+    }
+    const limit = new Date(start);
+    limit.setMonth(limit.getMonth() + 1);
+    return end > limit;
+  }
+
   submit(): void {
     this.error = null;
     this.articleResult = null;
@@ -366,6 +422,19 @@ export class SearchComponent {
       this.loading = false;
       this.error = 'Informe um tema para buscar.';
       return;
+    }
+
+    if (this.dateFrom && this.dateTo) {
+      if (this.dateFrom > this.dateTo) {
+        this.loading = false;
+        this.error = 'A data De não pode ser depois de Até.';
+        return;
+      }
+      if (this.exceedsOneMonth(this.dateFrom, this.dateTo)) {
+        this.loading = false;
+        this.error = 'O intervalo entre De e Até não pode passar de 1 mês.';
+        return;
+      }
     }
 
     this.api

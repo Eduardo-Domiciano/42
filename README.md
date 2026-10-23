@@ -40,7 +40,7 @@ API: `http://127.0.0.1:8000/docs`
 - `POST /api/ingest/url` — `{ "url": "https://..." }`
 - `POST /api/search/topic` — `{ "topic": "...", "date_from": "2026-10-01", "date_to": "2026-10-20" }`
 
-Opcional: `export OPENROUTER_API_KEY=sk-or-...` para claims via LLM (sem chave, usa heurísticas).
+**LLM:** desligada por padrão. Claims, filtro de tema e resumos usam heurísticas no código.
 
 ## Acervo de análises (SQLite)
 

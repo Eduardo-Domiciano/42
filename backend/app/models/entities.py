@@ -160,6 +160,11 @@ class ArticleClaim(Base):
 
 class ClaimAssessment(Base):
     __tablename__ = "claim_assessments"
+    __table_args__ = (
+        UniqueConstraint(
+            "article_id", "claim_id", name="uq_claim_assessment_article_claim"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     claim_id: Mapped[int] = mapped_column(ForeignKey("claims.id"), index=True)

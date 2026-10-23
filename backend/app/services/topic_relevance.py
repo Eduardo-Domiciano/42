@@ -58,8 +58,35 @@ _STOP = {
     "ano",
     "hoje",
     "ontem",
+    # genéricos que alargavam demais o pool local
+    "envolvido",
+    "envolvidos",
+    "envolvida",
+    "envolvidas",
+    "fazendo",
+    "feito",
+    "feita",
+    "registros",
+    "registro",
+    "recentes",
+    "recente",
+    "durante",
+    "depois",
+    "todos",
+    "todas",
+    "sendo",
+    "haver",
+    "existe",
+    "existem",
+    "pode",
+    "podem",
+    "sera",
+    "declaracoes",
+    "declaracao",
+    "polemicas",
+    "polemica",
+    "sala",
 }
-
 
 @dataclass
 class RelevanceResult:
@@ -243,33 +270,139 @@ def score_topic_relevance(topic: str, article: Article) -> RelevanceResult:
     )
 
 
+def _soft_accept(rel: RelevanceResult) -> bool:
+    """Meio-termo sem LLM: algum overlap real, score acima do piso soft."""
+    if rel.token_hits < 1:
+        return False
+    n = max(len(rel.tokens), 1)
+    need = 1 if n == 1 else max(1, ceil(n * 0.35))
+    return rel.token_hits >= need and rel.score >= settings.topic_soft_relevance
+
+
 def filter_and_rank_articles(
     topic: str,
     articles: list[Article],
     *,
     limit: int,
 ) -> tuple[list[tuple[Article, RelevanceResult]], int]:
-    scored: list[tuple[Article, RelevanceResult]] = []
-    rejected: list[tuple[Article, RelevanceResult]] = []
+    """
+    Aceite em camadas:
+    1) heurística estrita (claro sim)
+    2) zona cinza → juiz LLM de contexto (se houver chave)
+    3) sem LLM / LLM falhou → soft lexical (meio-termo)
+    Lixo óbvio (0 hits e score baixo) continua fora.
+    """
+    from app.services.topic_relevance_llm import (
+        judge_topic_relevance_batch,
+        llm_relevance_available,
+    )
+
+    clear_yes: list[tuple[Article, RelevanceResult]] = []
+    clear_no: list[tuple[Article, RelevanceResult]] = []
+    gray: list[tuple[Article, RelevanceResult]] = []
+
     for art in articles:
         rel = score_topic_relevance(topic, art)
         if rel.accepted:
-            scored.append((art, rel))
+            clear_yes.append((art, rel))
+        elif rel.token_hits == 0 and rel.score < settings.topic_soft_relevance:
+            clear_no.append((art, rel))
         else:
-            rejected.append((art, rel))
-    scored.sort(key=lambda x: (x[1].score, x[1].lexical), reverse=True)
+            gray.append((art, rel))
 
-    # Fallback: se o filtro zerar tudo, mantém os melhores com pelo menos 1 token
-    if not scored and rejected:
-        soft_floor = max(0.18, settings.topic_min_relevance * 0.45)
-        soft = [
-            (a, r)
-            for a, r in rejected
-            if r.score >= soft_floor and r.token_hits >= 1
-        ]
-        soft.sort(key=lambda x: (x[1].score, x[1].lexical), reverse=True)
-        if soft:
-            kept = soft[:limit]
-            return kept, len(rejected) - len(kept)
+    rescued: list[tuple[Article, RelevanceResult]] = []
+    still_no = list(clear_no)
 
-    return scored[:limit], len(rejected)
+    if gray:
+        gray.sort(key=lambda x: (x[1].score, x[1].token_hits), reverse=True)
+        need_more = max(0, limit - len(clear_yes))
+
+        if llm_relevance_available() and need_more > 0:
+            # Um artigo por chamada; para quando já encheu a cota de resultados
+            decisions = judge_topic_relevance_batch(
+                topic,
+                [a for a, _ in gray],
+                stop_when_relevant=need_more,
+            )
+            for art, rel in gray:
+                if len(clear_yes) + len(rescued) >= limit:
+                    still_no.append((art, rel))
+                    continue
+                verdict = decisions.get(art.id)
+                if verdict is None:
+                    if _soft_accept(rel):
+                        rescued.append(
+                            (
+                                art,
+                                RelevanceResult(
+                                    score=rel.score,
+                                    lexical=rel.lexical,
+                                    semantic=rel.semantic,
+                                    token_hits=rel.token_hits,
+                                    tokens=rel.tokens,
+                                    accepted=True,
+                                    reason=f"soft (sem veredito LLM): {rel.reason}",
+                                ),
+                            )
+                        )
+                    else:
+                        still_no.append((art, rel))
+                    continue
+                relevant, conf, reason = verdict
+                if relevant and conf >= 0.35:
+                    blend = min(1.0, 0.55 * rel.score + 0.45 * conf)
+                    rescued.append(
+                        (
+                            art,
+                            RelevanceResult(
+                                score=round(blend, 3),
+                                lexical=rel.lexical,
+                                semantic=rel.semantic,
+                                token_hits=rel.token_hits,
+                                tokens=rel.tokens,
+                                accepted=True,
+                                reason=f"LLM contexto ({conf:.2f}): {reason}",
+                            ),
+                        )
+                    )
+                else:
+                    still_no.append(
+                        (
+                            art,
+                            RelevanceResult(
+                                score=rel.score,
+                                lexical=rel.lexical,
+                                semantic=rel.semantic,
+                                token_hits=rel.token_hits,
+                                tokens=rel.tokens,
+                                accepted=False,
+                                reason=f"LLM descartou ({conf:.2f}): {reason}",
+                            ),
+                        )
+                    )
+        else:
+            for art, rel in gray:
+                if len(clear_yes) + len(rescued) >= limit:
+                    still_no.append((art, rel))
+                    continue
+                if _soft_accept(rel):
+                    rescued.append(
+                        (
+                            art,
+                            RelevanceResult(
+                                score=rel.score,
+                                lexical=rel.lexical,
+                                semantic=rel.semantic,
+                                token_hits=rel.token_hits,
+                                tokens=rel.tokens,
+                                accepted=True,
+                                reason=f"soft lexical: {rel.reason}",
+                            ),
+                        )
+                    )
+                else:
+                    still_no.append((art, rel))
+
+    kept = clear_yes + rescued
+    kept.sort(key=lambda x: (x[1].score, x[1].lexical), reverse=True)
+    return kept[:limit], len(still_no)

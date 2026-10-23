@@ -71,9 +71,9 @@
         </label>
       </div>
       <p class="hint">
-        Sem data: busca ampla (não só o noticiário do dia). Com período: prioriza
-        matérias desse intervalo. Use tema específico (ex.: “reforma tributária
-        IVA”) para menos ruído.
+        Sem data: busca ampla (não só o noticiário do dia). Com período: no máximo
+        1 mês entre De e Até. Use tema específico (ex.: “reforma tributária IVA”)
+        para menos ruído.
       </p>
     } @else {
       <label>
@@ -101,18 +101,32 @@
 <nav class="content-nav" aria-label="Navegação dos resultados">
   <div class="content-nav-inner">
     <p class="content-nav-label">Resultados da análise</p>
-    <button
-      type="button"
-      class="info-btn"
-      (click)="openGlossary()"
-      aria-haspopup="dialog"
-      [attr.aria-expanded]="glossaryOpen"
-      aria-controls="glossary-dialog"
-      title="Glossário de termos"
-    >
-      <span class="info-btn-mark" aria-hidden="true">i</span>
-      <span class="sr-only">Abrir glossário de termos</span>
-    </button>
+    <div class="nav-actions">
+      <button
+        type="button"
+        class="info-btn"
+        (click)="openParams()"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="paramsOpen"
+        aria-controls="params-dialog"
+        title="Parâmetros de relevância"
+      >
+        <span class="info-btn-mark" aria-hidden="true">P</span>
+        <span class="sr-only">Abrir parâmetros de relevância e descarte</span>
+      </button>
+      <button
+        type="button"
+        class="info-btn"
+        (click)="openGlossary()"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="glossaryOpen"
+        aria-controls="glossary-dialog"
+        title="Glossário de termos"
+      >
+        <span class="info-btn-mark" aria-hidden="true">i</span>
+        <span class="sr-only">Abrir glossário de termos</span>
+      </button>
+    </div>
   </div>
 </nav>
 
@@ -153,6 +167,53 @@
           </div>
         }
       </dl>
+    </div>
+  </div>
+}
+
+@if (paramsOpen) {
+  <div
+    class="modal-backdrop"
+    (click)="closeParams()"
+    role="presentation"
+  >
+    <div
+      id="params-dialog"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="params-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-head">
+        <h2 id="params-title">Parâmetros de filtro</h2>
+        <button
+          type="button"
+          class="modal-close"
+          (click)="closeParams()"
+          aria-label="Fechar parâmetros"
+        >
+          ×
+        </button>
+      </header>
+      <p class="modal-lede">
+        Na busca por tema, cada candidato é aceito ou descartado. Não há
+        “meio-termo”: ou passa no filtro estrito, ou some da lista.
+      </p>
+
+      <h3 class="params-section-title accept">Artigo relevante (aceito)</h3>
+      <ul class="params-list">
+        @for (item of paramsRelevant; track item) {
+          <li>{{ item }}</li>
+        }
+      </ul>
+
+      <h3 class="params-section-title discard">Artigo descartado</h3>
+      <ul class="params-list">
+        @for (item of paramsDiscarded; track item) {
+          <li>{{ item }}</li>
+        }
+      </ul>
     </div>
   </div>
 }
@@ -243,12 +304,12 @@
                 <tr>
                   <th scope="col">Claim (afirmativa)</th>
                   <th scope="col">Veredito</th>
-                  <th scope="col">Conf.</th>
+                  <th scope="col">Confiança</th>
                   <th scope="col">Temporal</th>
-                  <th scope="col">Geo</th>
-                  <th scope="col">Partisan</th>
-                  <th scope="col">Distortion</th>
-                  <th scope="col">Support</th>
+                  <th scope="col">Geográfico</th>
+                  <th scope="col">Partidário</th>
+                  <th scope="col">Distorção</th>
+                  <th scope="col">Suporte</th>
                   <th scope="col">Método</th>
                 </tr>
               </thead>
@@ -529,12 +590,12 @@
                           <tr>
                             <th scope="col">Claim (afirmativa)</th>
                             <th scope="col">Veredito</th>
-                            <th scope="col">Conf.</th>
+                            <th scope="col">Confiança</th>
                             <th scope="col">Temporal</th>
-                            <th scope="col">Geo</th>
-                            <th scope="col">Partisan</th>
-                            <th scope="col">Distortion</th>
-                            <th scope="col">Support</th>
+                            <th scope="col">Geográfico</th>
+                            <th scope="col">Partidário</th>
+                            <th scope="col">Distorção</th>
+                            <th scope="col">Suporte</th>
                             <th scope="col">Método</th>
                           </tr>
                         </thead>
