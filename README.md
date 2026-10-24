@@ -2,7 +2,7 @@
 
 App híbrido (Python + Angular) para coletar notícias brasileiras, guardar fonte/autor/conteúdo/data e devolver uma análise preliminar. Usa o catálogo de fontes do Frank Investigator (copiado) e mantém os projetos originais só como referência local em `_reference/` (ignorada pelo Git).
 
-[42](./img/42-exemplo.png)
+![42](./img/42-exemplo.png)
 
 ## Estrutura
 
