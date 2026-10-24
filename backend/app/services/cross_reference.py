@@ -20,6 +20,7 @@ from app.services.heuristic_claims import claims_near_duplicate
 from app.services.nn_embeddings import rank_articles_by_claim
 from app.services.nn_runtime import get_embedder, nn_enabled
 from app.services.stance import classify_stance
+from app.services.topic_officials import official_search_query
 from app.services.web_search import search_news_urls
 
 _STOP = {
@@ -190,12 +191,13 @@ def _local_peers(
 
 def _fetch_web_peers(db: Session, claim_text: str, root: Article) -> list[Article]:
     query = _query_from_claim(claim_text)
-    # Prioriza oficiais na query também
+    # Prioriza oficiais na query também (sites conforme tema do claim)
     urls = search_news_urls(
         query, max_results=settings.crossref_max_peers, refine_query=True
     )
+    official_q = official_search_query(db, claim_text, query)
     official_urls = search_news_urls(
-        f"{query} site:gov.br OR site:ibge.gov.br OR site:bcb.gov.br",
+        official_q,
         max_results=max(2, settings.crossref_max_peers // 2),
         refine_query=False,
     )

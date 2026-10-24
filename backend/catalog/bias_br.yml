@@ -3,9 +3,9 @@
 # Isto NÃO é veredito de verdade; serve para comparar framing e ownership.
 # Revisável. Ver docs/catalogo-bias.md
 
-version: "1.0.0"
+version: "1.1.0"
 country: BR
-updated_at: "2026-10-20"
+updated_at: "2026-10-23"
 methodology: |
   Julgamento curado para contraste editorial no produto ④②.
   Combina papel institucional (governo/estatística), grupo de mídia e
@@ -72,6 +72,26 @@ sources:
     bias_label: institutional
     ownership_name: "Receita Federal"
     note: "Normas e dados fiscais."
+  fazenda:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Ministério da Fazenda"
+    note: "Posição oficial de política fiscal e macroeconomia."
+  tesouro:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "Tesouro Nacional / STN"
+    note: "Dívida pública, resultado fiscal e séries oficiais."
+  cvm:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "CVM"
+    note: "Regulação do mercado de capitais."
+  portal_transparencia:
+    bias_score: 0.0
+    bias_label: institutional
+    ownership_name: "CGU / Portal da Transparência"
+    note: "Gastos públicos e dados abertos de execução."
   dados_abertos:
     bias_score: 0.0
     bias_label: institutional

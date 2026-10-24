@@ -15,11 +15,13 @@
       Brasil: análise técnica de notícias, artigos e opiniões
     </h1>
     <p class="lede">
-      Busque por link ou por tema dentro de um período. A ferramenta extrai
-      afirmativas, busca evidências em outras fontes, classifica a posição da
-      evidência e compara o veredito isolado com o consenso — alertando quando a
-      notícia e as fontes parecem seguir linhas de pensamento tendenciosas, sem
-      contrapontos e/ou sem embasamento.
+      Cole o link de uma matéria ou busque um tema dentro de um período.
+      A ferramenta lê o texto, separa as afirmativas checáveis e procura
+      o que outras fontes dizem sobre o mesmo ponto. Em seguida classifica
+      se cada evidência apoia, contesta ou só se relaciona ao relato, e
+      compara o que a matéria sustenta sozinha com o consenso externo —
+      avisando quando o conjunto parece tendencioso, sem contraponto ou
+      sem embasamento.
     </p>
   </div>
 </header>
@@ -29,18 +31,18 @@
     <button
       type="button"
       role="tab"
-      [class.active]="mode === 'topic'"
-      (click)="setMode('topic')"
-    >
-      Tema + período
-    </button>
-    <button
-      type="button"
-      role="tab"
       [class.active]="mode === 'url'"
       (click)="setMode('url')"
     >
       URL (endereço do artigo)
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="mode === 'topic'"
+      (click)="setMode('topic')"
+    >
+      Tema + período
     </button>
   </div>
 
@@ -56,24 +58,67 @@
           autocomplete="off"
         />
       </label>
-      <div class="row">
-        <label>
-          De
-          <input type="date" name="dateFrom" [(ngModel)]="dateFrom" />
-        </label>
-        <label>
-          Até
-          <input type="date" name="dateTo" [(ngModel)]="dateTo" />
-        </label>
-        <label>
-          Ou só uma data
-          <input type="date" name="onDate" [(ngModel)]="onDate" />
-        </label>
+      <div class="date-month-row">
+        <div class="date-range-block">
+          <p class="date-block-title">Período</p>
+          <div class="date-range-fields">
+            <label>
+              De
+              <input type="date" name="dateFrom" [(ngModel)]="dateFrom" />
+            </label>
+            <label>
+              Até
+              <input type="date" name="dateTo" [(ngModel)]="dateTo" />
+            </label>
+          </div>
+        </div>
+        <div class="month-picker" role="group" aria-labelledby="month-picker-title">
+          <p class="date-block-title" id="month-picker-title">Ou um mês</p>
+          <div class="month-picker-stack">
+            <label class="month-year-label">
+              Ano
+              <select
+                name="monthPickerYear"
+                [ngModel]="monthPickerYear"
+                (ngModelChange)="setMonthPickerYear($event)"
+              >
+                @for (y of monthYearOptions; track y) {
+                  <option [ngValue]="y">{{ y }}</option>
+                }
+              </select>
+            </label>
+            <label class="month-year-label">
+              Mês
+              <select
+                name="monthPickerMonth"
+                [ngModel]="monthPickerMonth"
+                (ngModelChange)="setMonthPickerMonth($event)"
+              >
+                <option [ngValue]="0">—</option>
+                @for (label of monthLabels; track $index) {
+                  <option [ngValue]="$index + 1">{{ label }}</option>
+                }
+              </select>
+            </label>
+          </div>
+          @if (onMonth) {
+            <div class="month-picker-footer">
+              <p class="month-picked">{{ onMonthLabel() }}</p>
+              <button
+                type="button"
+                class="month-clear"
+                (click)="clearOnMonth()"
+              >
+                Limpar
+              </button>
+            </div>
+          }
+        </div>
       </div>
       <p class="hint">
-        Sem data: busca ampla (não só o noticiário do dia). Com período: no máximo
-        1 mês entre De e Até. Use tema específico (ex.: “reforma tributária IVA”)
-        para menos ruído.
+        Sem data: busca ampla. “Ou um mês” cobre o mês civil inteiro. Com De/Até:
+        no máximo 1 mês entre as duas datas. Se o mês estiver preenchido, ele
+        prevalece sobre De/Até.
       </p>
     } @else {
       <label>
@@ -105,6 +150,18 @@
       <button
         type="button"
         class="info-btn"
+        (click)="openAnalysis()"
+        aria-haspopup="dialog"
+        [attr.aria-expanded]="analysisOpen"
+        aria-controls="analysis-dialog"
+        title="Como a análise é feita"
+      >
+        <span class="info-btn-mark" aria-hidden="true">A</span>
+        <span class="sr-only">Abrir passo a passo da análise</span>
+      </button>
+      <button
+        type="button"
+        class="info-btn"
         (click)="openParams()"
         aria-haspopup="dialog"
         [attr.aria-expanded]="paramsOpen"
@@ -129,6 +186,53 @@
     </div>
   </div>
 </nav>
+
+@if (analysisOpen) {
+  <div
+    class="modal-backdrop"
+    (click)="closeAnalysis()"
+    role="presentation"
+  >
+    <div
+      id="analysis-dialog"
+      class="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="analysis-title"
+      (click)="$event.stopPropagation()"
+    >
+      <header class="modal-head">
+        <h2 id="analysis-title">Como a análise é feita</h2>
+        <button
+          type="button"
+          class="modal-close"
+          (click)="closeAnalysis()"
+          aria-label="Fechar passo a passo da análise"
+        >
+          ×
+        </button>
+      </header>
+      <p class="modal-lede">
+        Fluxo completo, do clique em “Buscar e analisar” até o que aparece
+        na tela. Termos técnicos estão no glossário (i); o filtro do tema no
+        botão P.
+      </p>
+      <ol class="analysis-steps">
+        @for (step of analysisSteps; track step.title; let i = $index) {
+          <li>
+            <span class="analysis-step-num" aria-hidden="true">{{
+              i + 1
+            }}</span>
+            <div class="analysis-step-body">
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.detail }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+    </div>
+  </div>
+}
 
 @if (glossaryOpen) {
   <div
@@ -316,12 +420,18 @@
         }
         @if (articleResult.claims.length) {
           <div class="claims">
-            <h4>{{ claimsWord() }} avaliados</h4>
+            <div class="claims-heading">
+              <h4>{{ claimsWord() }} avaliados</h4>
+              <p class="claims-scale-note">
+                Pontuação das notas: de 0,00 (mínimo) a 1,00 (máximo). Confiança
+                em %.
+              </p>
+            </div>
             <div class="table-wrap">
               <table class="scores-table">
                 <thead>
                   <tr>
-                    <th scope="col">Claim (afirmativa)</th>
+                    <th scope="col">Afirmativa</th>
                     <th scope="col">Veredito</th>
                     <th scope="col">Confiança</th>
                     <th scope="col">Temporal</th>
@@ -354,6 +464,70 @@
                 </tbody>
               </table>
             </div>
+          </div>
+        }
+        @if (articleResult.bcb_comparisons?.length) {
+          <div class="bcb-compare">
+            <h4>Comparação com o Banco Central</h4>
+            <p class="claims-scale-note">
+              Tema economia: séries SGS do ano em cache local; números das
+              afirmativas confrontados com Selic, IPCA e dólar.
+            </p>
+            <div class="table-wrap">
+              <table class="scores-table compact">
+                <thead>
+                  <tr>
+                    <th scope="col">Indicador</th>
+                    <th scope="col">Ano</th>
+                    <th scope="col">Citado</th>
+                    <th scope="col">Oficial BCB</th>
+                    <th scope="col">Data BCB</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (b of articleResult.bcb_comparisons; track $index) {
+                    <tr>
+                      <td>
+                        {{ b.indicator_name }}
+                        @if (b.series_code) {
+                          <span class="muted"> ({{ b.series_code }})</span>
+                        }
+                      </td>
+                      <td class="num">{{ b.year }}</td>
+                      <td class="num">
+                        {{
+                          b.claimed_value !== null && b.claimed_value !== undefined
+                            ? (b.claimed_value | number: '1.2-2')
+                            : '—'
+                        }}
+                      </td>
+                      <td class="num">
+                        {{
+                          b.official_value !== null &&
+                          b.official_value !== undefined
+                            ? (b.official_value | number: '1.2-2')
+                            : '—'
+                        }}
+                      </td>
+                      <td>{{ b.official_date || '—' }}</td>
+                      <td>
+                        <span
+                          class="badge"
+                          [class.warn]="b.status === 'mismatch'"
+                          >{{ bcbStatusLabel(b.status) }}</span
+                        >
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @for (b of articleResult.bcb_comparisons; track $index) {
+              @if (b.note) {
+                <p class="bcb-note">{{ b.note }}</p>
+              }
+            }
           </div>
         }
         @if (articleResult.cross_references.length) {
@@ -615,12 +789,18 @@
                   }
                   @if (item.claims.length) {
                     <div class="claims">
-                      <h4>{{ claimsWord() }} ({{ item.claims.length }})</h4>
+                      <div class="claims-heading">
+                        <h4>{{ claimsWord() }} ({{ item.claims.length }})</h4>
+                        <p class="claims-scale-note">
+                          Pontuação das notas: de 0,00 (mínimo) a 1,00 (máximo).
+                          Confiança em %.
+                        </p>
+                      </div>
                       <div class="table-wrap">
                         <table class="scores-table">
                           <thead>
                             <tr>
-                              <th scope="col">Claim (afirmativa)</th>
+                              <th scope="col">Afirmativa</th>
                               <th scope="col">Veredito</th>
                               <th scope="col">Confiança</th>
                               <th scope="col">Temporal</th>
@@ -666,6 +846,59 @@
                       </div>
                     </div>
                   }
+                  @if (item.bcb_comparisons?.length) {
+                    <div class="bcb-compare">
+                      <h4>Comparação com o Banco Central</h4>
+                      <p class="claims-scale-note">
+                        Tema economia: séries SGS anuais em cache; comparação
+                        Selic / IPCA / dólar.
+                      </p>
+                      <div class="table-wrap">
+                        <table class="scores-table compact">
+                          <thead>
+                            <tr>
+                              <th scope="col">Indicador</th>
+                              <th scope="col">Ano</th>
+                              <th scope="col">Citado</th>
+                              <th scope="col">Oficial BCB</th>
+                              <th scope="col">Status</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (b of item.bcb_comparisons; track $index) {
+                              <tr>
+                                <td>{{ b.indicator_name }}</td>
+                                <td class="num">{{ b.year }}</td>
+                                <td class="num">
+                                  {{
+                                    b.claimed_value !== null &&
+                                    b.claimed_value !== undefined
+                                      ? (b.claimed_value | number: '1.2-2')
+                                      : '—'
+                                  }}
+                                </td>
+                                <td class="num">
+                                  {{
+                                    b.official_value !== null &&
+                                    b.official_value !== undefined
+                                      ? (b.official_value | number: '1.2-2')
+                                      : '—'
+                                  }}
+                                </td>
+                                <td>
+                                  <span
+                                    class="badge"
+                                    [class.warn]="b.status === 'mismatch'"
+                                    >{{ bcbStatusLabel(b.status) }}</span
+                                  >
+                                </td>
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
                   @if (item.cross_references.length) {
                     <div class="xref">
                       <h4>{{ crossRefWord() }} ({{ item.cross_references.length }})</h4>
@@ -673,7 +906,7 @@
                         <table class="scores-table compact">
                           <thead>
                             <tr>
-                              <th scope="col">Claim</th>
+                              <th scope="col">Afirmativa</th>
                               <th scope="col">F3</th>
                               <th scope="col">{{ consensusWord() }}</th>
                               <th scope="col">{{ calibrationWord() }}</th>

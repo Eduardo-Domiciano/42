@@ -8,7 +8,7 @@ API e persistência do app: ingestão de URLs, busca por tema e análise prelimi
 | --- | --- |
 | `requirements.txt` | Dependências Python base. |
 | `requirements-nn.txt` | Dependências opcionais de redes neurais (torch, transformers). |
-| `source_profiles.yml` | Catálogo de fontes (seed BR a partir do Frank). |
+| `source_profiles.yml` | Catálogo de fontes BR/US (tier, topics, hosts; seed só importa BR). |
 | `Dockerfile` | Imagem da API (uvicorn; `INSTALL_NN=1` inclui NN). |
 | `.dockerignore` | Arquivos excluídos do build da imagem. |
 

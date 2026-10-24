@@ -26,6 +26,7 @@ class Source(Base):
     name: Mapped[str] = mapped_column(String(255))
     domain: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     kind: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    source_role: Mapped[str | None] = mapped_column(String(80), nullable=True)
     authority_tier: Mapped[str | None] = mapped_column(String(40), nullable=True)
     authority_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     ownership_group: Mapped[str | None] = mapped_column(String(120), nullable=True)
@@ -35,6 +36,10 @@ class Source(Base):
     bias_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     bias_catalog_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     country: Mapped[str] = mapped_column(String(8), default="BR")
+    # CSV: "economia,demografia" — temas oficiais para busca F4
+    topics: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # CSV dos host_patterns do YAML (além de domain) para resolve multi-host
+    host_patterns: Mapped[str | None] = mapped_column(Text, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     articles: Mapped[list[Article]] = relationship(back_populates="source")
@@ -250,3 +255,38 @@ class QueryArticle(Base):
 
     topic_query: Mapped[TopicQuery] = relationship(back_populates="articles")
     article: Mapped[Article] = relationship(back_populates="query_links")
+
+
+class BcbSeriesAnnual(Base):
+    """Cache anual de uma série SGS do Banco Central (1 linha = série + ano)."""
+
+    __tablename__ = "bcb_series_annual"
+    __table_args__ = (
+        UniqueConstraint("series_code", "year", name="uq_bcb_series_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_code: Mapped[int] = mapped_column(Integer, index=True)
+    series_slug: Mapped[str] = mapped_column(String(80), index=True)
+    series_name: Mapped[str] = mapped_column(String(255))
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    # JSON: [{"data":"dd/MM/yyyy","valor":"12.25"}, ...]
+    points_json: Mapped[str] = mapped_column(Text, default="[]")
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class ArticleBcbComparison(Base):
+    """Resultado da comparação artigo × séries BCB do ano (tema economia)."""
+
+    __tablename__ = "article_bcb_comparisons"
+    __table_args__ = (
+        UniqueConstraint("article_id", "year", name="uq_article_bcb_year"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    article_id: Mapped[int] = mapped_column(ForeignKey("articles.id"), index=True)
+    year: Mapped[int] = mapped_column(Integer, index=True)
+    # JSON: lista de comparações por claim/indicador
+    results_json: Mapped[str] = mapped_column(Text, default="[]")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

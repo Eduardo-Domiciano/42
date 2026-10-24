@@ -15,6 +15,7 @@ from app.services.analysis_cache import (
     snapshot_to_analysis_out,
 )
 from app.services.analyze import analyze_article
+from app.services.bcb_compare import run_bcb_comparison
 from app.services.claim_pipeline import ensure_claim_assessments
 from app.services.cross_reference import run_cross_reference_for_article
 from app.services.llm_client import llm_configured
@@ -102,6 +103,10 @@ def build_article_out(
         save_snapshot(db, article, analysis, narrative, replace_all=force)
         cached = False
 
+    bcb_comparisons = run_bcb_comparison(
+        db, article, claims, force=force
+    )
+
     return ArticleOut(
         id=article.id,
         url=article.url,
@@ -118,4 +123,5 @@ def build_article_out(
         narrative_summary=narrative,
         analysis_cached=cached,
         outbound_links=outbound,
+        bcb_comparisons=bcb_comparisons,
     )

@@ -1,8 +1,10 @@
 from app.models.entities import (
     Article,
     ArticleAnalysis,
+    ArticleBcbComparison,
     ArticleClaim,
     ArticleOutboundLink,
+    BcbSeriesAnnual,
     Claim,
     ClaimAssessment,
     CrossReference,
@@ -15,8 +17,10 @@ from app.models.entities import (
 __all__ = [
     "Article",
     "ArticleAnalysis",
+    "ArticleBcbComparison",
     "ArticleClaim",
     "ArticleOutboundLink",
+    "BcbSeriesAnnual",
     "Claim",
     "ClaimAssessment",
     "CrossReference",

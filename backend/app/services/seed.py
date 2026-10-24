@@ -16,10 +16,40 @@ from app.services.bias_catalog import (
 )
 
 
-def _primary_domain(host_patterns: list[str] | None) -> str | None:
+def _normalize_host(host: str) -> str:
+    return host.lower().removeprefix("www.").strip()
+
+
+def _host_list(host_patterns: list[str] | None) -> list[str]:
     if not host_patterns:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in host_patterns:
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        host = _normalize_host(raw)
+        if host and host not in seen:
+            seen.add(host)
+            out.append(host)
+    return out
+
+
+def _primary_domain(host_patterns: list[str] | None) -> str | None:
+    hosts = _host_list(host_patterns)
+    return hosts[0] if hosts else None
+
+
+def _topics_csv(topics: list | str | None) -> str | None:
+    if topics is None:
         return None
-    return host_patterns[0].lower().removeprefix("www.")
+    if isinstance(topics, str):
+        parts = [p.strip().lower() for p in topics.split(",") if p.strip()]
+    else:
+        parts = [str(p).strip().lower() for p in topics if str(p).strip()]
+    if not parts:
+        return None
+    return ",".join(parts)
 
 
 def seed_brazil_sources(db: Session) -> int:
@@ -36,10 +66,11 @@ def seed_brazil_sources(db: Session) -> int:
         if not isinstance(profile, dict):
             continue
         existing = db.scalar(select(Source).where(Source.slug == slug))
-        domain = _primary_domain(profile.get("host_patterns"))
+        hosts = _host_list(profile.get("host_patterns"))
+        domain = hosts[0] if hosts else None
         homepage = profile.get("homepage_url")
         if not domain and homepage:
-            domain = urlparse(homepage).netloc.lower().removeprefix("www.")
+            domain = _normalize_host(urlparse(homepage).netloc)
 
         independence = profile.get("independence_group")
         bias = bias_for_slug(slug)
@@ -48,6 +79,7 @@ def seed_brazil_sources(db: Session) -> int:
             name=profile.get("name") or slug,
             domain=domain,
             kind=profile.get("source_kind"),
+            source_role=profile.get("source_role"),
             authority_tier=profile.get("authority_tier"),
             authority_score=profile.get("authority_score"),
             ownership_group=independence,
@@ -57,6 +89,8 @@ def seed_brazil_sources(db: Session) -> int:
             bias_note=bias.get("note"),
             bias_catalog_version=version,
             country=profile.get("audience_country") or "BR",
+            topics=_topics_csv(profile.get("topics")),
+            host_patterns=",".join(hosts) if hosts else None,
             notes=profile.get("notes"),
         )
 

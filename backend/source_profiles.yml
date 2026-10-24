@@ -215,6 +215,7 @@ brazil:
     authority_score: 0.99
     independence_group: "in.gov.br"
     audience_country: "BR"
+    topics: ["governo"]
     notes: "Official federal gazette. Authenticated legal text for laws, decrees, portarias, and regulatory acts."
   ibge:
     name: "IBGE"
@@ -230,6 +231,7 @@ brazil:
     authority_score: 0.97
     independence_group: "ibge.gov.br"
     audience_country: "BR"
+    topics: ["economia", "demografia"]
     notes: "Brazilian national statistics institute. Primary source for demographic, economic, and geographic data."
   ipea:
     name: "Ipea"
@@ -244,6 +246,7 @@ brazil:
     authority_score: 0.93
     independence_group: "ipea.gov.br"
     audience_country: "BR"
+    topics: ["economia"]
     notes: "Institute for Applied Economic Research. Strong for economic analysis and time series."
   bcb:
     name: "Banco Central do Brasil"
@@ -257,6 +260,7 @@ brazil:
     authority_score: 0.97
     independence_group: "bcb.gov.br"
     audience_country: "BR"
+    topics: ["economia"]
     notes: "Central bank. Primary source for Selic, monetary policy, banking supervision, and financial data."
   tcu:
     name: "TCU"
@@ -270,6 +274,7 @@ brazil:
     authority_score: 0.97
     independence_group: "tcu.gov.br"
     audience_country: "BR"
+    topics: ["governo", "economia"]
     notes: "Federal Court of Accounts. Top source for public expenditure audits and oversight."
   cgu:
     name: "CGU"
@@ -283,6 +288,7 @@ brazil:
     authority_score: 0.97
     independence_group: "cgu.gov.br"
     audience_country: "BR"
+    topics: ["governo"]
     notes: "Comptroller General. Transparency, anti-corruption, and internal control."
   anvisa:
     name: "Anvisa"
@@ -296,6 +302,7 @@ brazil:
     authority_score: 0.95
     independence_group: "anvisa.gov.br"
     audience_country: "BR"
+    topics: ["saude"]
     notes: "Health regulatory agency. Primary source for drug approvals, health product regulations."
   inep:
     name: "Inep"
@@ -309,6 +316,7 @@ brazil:
     authority_score: 0.95
     independence_group: "inep.gov.br"
     audience_country: "BR"
+    topics: ["educacao"]
     notes: "National education research institute. Primary source for ENEM, Censo Escolar, IDEB."
   datasus:
     name: "DataSUS"
@@ -321,6 +329,7 @@ brazil:
     authority_score: 0.95
     independence_group: "datasus.saude.gov.br"
     audience_country: "BR"
+    topics: ["saude"]
     notes: "Health data platform. Primary source for SUS statistics, mortality, morbidity, hospital data."
   receita_federal:
     name: "Receita Federal"
@@ -333,7 +342,66 @@ brazil:
     authority_score: 0.95
     independence_group: "receita.fazenda.gov.br"
     audience_country: "BR"
+    topics: ["economia"]
     notes: "Federal Revenue Service. Tax regulations, fiscal data, CNPJ registry."
+  fazenda:
+    name: "Ministerio da Fazenda"
+    homepage_url: "https://www.gov.br/fazenda/"
+    host_patterns:
+      - "fazenda.gov.br"
+      - "www.fazenda.gov.br"
+    source_kind: "government_record"
+    source_role: "official_position"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "fazenda.gov.br"
+    audience_country: "BR"
+    topics: ["economia"]
+    notes: "Ministry of Finance. Fiscal policy, macroeconomy briefings, and official economic position."
+  tesouro:
+    name: "Tesouro Nacional"
+    homepage_url: "https://www.tesourotransparente.gov.br/"
+    host_patterns:
+      - "tesourotransparente.gov.br"
+      - "www.tesourotransparente.gov.br"
+      - "tesouro.gov.br"
+      - "www.tesouro.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.96
+    independence_group: "tesouro.gov.br"
+    audience_country: "BR"
+    topics: ["economia"]
+    notes: "National Treasury. Public debt, fiscal results, and transparent spending series."
+  cvm:
+    name: "CVM"
+    homepage_url: "https://www.gov.br/cvm/"
+    host_patterns:
+      - "cvm.gov.br"
+      - "www.cvm.gov.br"
+    source_kind: "government_record"
+    source_role: "authenticated_legal_text"
+    authority_tier: "primary"
+    authority_score: 0.95
+    independence_group: "cvm.gov.br"
+    audience_country: "BR"
+    topics: ["economia"]
+    notes: "Securities and Exchange Commission of Brazil. Capital markets regulation and filings."
+  portal_transparencia:
+    name: "Portal da Transparencia"
+    homepage_url: "https://portaldatransparencia.gov.br/"
+    host_patterns:
+      - "portaldatransparencia.gov.br"
+      - "www.portaldatransparencia.gov.br"
+    source_kind: "government_record"
+    source_role: "neutral_statistics"
+    authority_tier: "primary"
+    authority_score: 0.94
+    independence_group: "portaldatransparencia.gov.br"
+    audience_country: "BR"
+    topics: ["economia", "governo"]
+    notes: "Federal transparency portal. Public spending, transfers, and open fiscal data."
   dados_abertos:
     name: "Portal de Dados Abertos"
     homepage_url: "https://dados.gov.br/"
@@ -345,6 +413,7 @@ brazil:
     authority_score: 0.92
     independence_group: "dados.gov.br"
     audience_country: "BR"
+    topics: ["governo"]
     notes: "Federal open data portal. Aggregated datasets from multiple government agencies."
   agencia_brasil:
     name: "Agencia Brasil"

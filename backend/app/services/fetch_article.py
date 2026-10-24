@@ -35,15 +35,35 @@ def _domain_of(url: str) -> str:
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
+def _source_hosts(source: Source) -> list[str]:
+    """Domínios conhecidos da fonte (domain + host_patterns do seed)."""
+    hosts: list[str] = []
+    seen: set[str] = set()
+    for raw in (source.host_patterns or "").split(",") + [source.domain or ""]:
+        host = (raw or "").lower().removeprefix("www.").strip()
+        if host and host not in seen:
+            seen.add(host)
+            hosts.append(host)
+    return hosts
+
+
+def _host_matches(domain: str, pattern: str) -> bool:
+    return domain == pattern or domain.endswith("." + pattern)
+
+
 def resolve_source(db: Session, url: str) -> Source | None:
     domain = _domain_of(url)
     sources = db.scalars(select(Source)).all()
+    # Preferir o padrão mais específico (mais longo) para evitar empate genérico.
+    best: Source | None = None
+    best_len = -1
     for source in sources:
-        if source.domain and (
-            domain == source.domain or domain.endswith("." + source.domain)
-        ):
-            return source
-    return None
+        for pattern in _source_hosts(source):
+            if _host_matches(domain, pattern) and len(pattern) > best_len:
+                best = source
+                best_len = len(pattern)
+    return best
+
 
 
 def _parse_published(value: str | None) -> datetime | None:

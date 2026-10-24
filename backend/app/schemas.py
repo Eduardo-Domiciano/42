@@ -109,6 +109,21 @@ class ArticleAnalysisOut(BaseModel):
     factors: list[str]
 
 
+class BcbComparisonOut(BaseModel):
+    claim_id: int = 0
+    claim_text: str = ""
+    indicator_slug: str
+    indicator_name: str
+    series_code: int = 0
+    year: int
+    claimed_value: float | None = None
+    official_value: float | None = None
+    official_date: str | None = None
+    status: str
+    note: str = ""
+    from_cache: bool = True
+
+
 class ArticleOut(BaseModel):
     id: int
     url: str
@@ -125,6 +140,7 @@ class ArticleOut(BaseModel):
     narrative_summary: str = ""
     analysis_cached: bool = False
     outbound_links: list[OutboundLinkOut] = Field(default_factory=list)
+    bcb_comparisons: list[BcbComparisonOut] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

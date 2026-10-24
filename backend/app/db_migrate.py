@@ -12,6 +12,9 @@ SOURCE_COLUMNS: dict[str, str] = {
     "bias_label": "VARCHAR(40)",
     "bias_note": "TEXT",
     "bias_catalog_version": "VARCHAR(20)",
+    "source_role": "VARCHAR(80)",
+    "topics": "VARCHAR(255)",
+    "host_patterns": "TEXT",
 }
 
 

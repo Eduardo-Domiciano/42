@@ -251,6 +251,124 @@ input:focus {
   line-height: 1.4;
 }
 
+.date-month-row {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+@media (min-width: 640px) {
+  .date-month-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.date-range-block,
+.month-picker {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0.85rem 1rem 1rem;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.date-range-block {
+  border: 1px solid rgba(42, 42, 42, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.date-block-title {
+  margin: 0 0 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  line-height: 1.2;
+  color: var(--ink-soft);
+}
+
+.date-range-fields {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  flex: 1;
+  align-content: start;
+}
+
+.month-picker {
+  border: 1px solid rgba(44, 83, 119, 0.35);
+  background: color-mix(in srgb, var(--steel) 72%, var(--cream-soft));
+  color: var(--steel-deep);
+}
+
+.month-picker .date-block-title {
+  color: var(--steel-deep);
+}
+
+.month-picker-stack {
+  display: grid;
+  gap: 0.55rem;
+  flex: 1;
+  align-content: start;
+}
+
+.month-year-label {
+  display: grid;
+  gap: 0.3rem;
+  color: var(--steel-deep);
+  font-size: 0.9rem;
+}
+
+.month-year-label select {
+  border: 1px solid rgba(44, 83, 119, 0.28);
+  background: #fff;
+  padding: 0.55rem 0.65rem;
+  font: inherit;
+  color: var(--ink);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.month-year-label select:focus {
+  outline: 2px solid var(--mustard);
+  outline-offset: 1px;
+}
+
+.month-picker-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-top: auto;
+  padding-top: 0.65rem;
+}
+
+.month-clear {
+  border: 1px solid rgba(44, 83, 119, 0.4);
+  background: rgba(255, 255, 255, 0.45);
+  color: var(--steel-deep);
+  padding: 0.4rem 0.7rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.month-clear:hover {
+  background: var(--steel);
+  color: var(--cream-soft);
+  border-color: var(--steel);
+}
+
+.month-picked {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--steel-deep);
+  font-weight: 600;
+}
+
 /* —— Barra entre formulário e conteúdo (sticky) —— */
 .content-nav {
   position: sticky;
@@ -460,6 +578,51 @@ input:focus {
 
 .params-list li::marker {
   color: var(--mustard);
+}
+
+.analysis-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.analysis-steps > li {
+  display: grid;
+  grid-template-columns: 1.75rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.analysis-step-num {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--steel);
+  background: #fff;
+  font-family: var(--font-display);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--steel-deep);
+  line-height: 1;
+}
+
+.analysis-step-body h3 {
+  margin: 0.15rem 0 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  color: var(--steel-deep);
+}
+
+.analysis-step-body p {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
 }
 
 @keyframes modal-fade {
@@ -713,9 +876,45 @@ input:focus {
   margin-top: 1rem;
 }
 
+.claims-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
 .claims h4 {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 0.95rem;
+}
+
+.claims-scale-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.bcb-compare {
+  margin-top: 1rem;
+}
+
+.bcb-compare h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+}
+
+.bcb-note {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  line-height: 1.35;
+}
+
+.muted {
+  color: var(--ink-soft);
+  font-size: 0.85em;
 }
 
 .table-wrap {

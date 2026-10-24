@@ -12,6 +12,11 @@ export interface GlossaryEntry {
   meaning: string;
 }
 
+export interface AnalysisStep {
+  title: string;
+  detail: string;
+}
+
 @Component({
   selector: 'app-search',
   standalone: true,
@@ -22,12 +27,35 @@ export interface GlossaryEntry {
 export class SearchComponent {
   private readonly api = inject(ApiService);
 
-  mode: SearchMode = 'topic';
+  mode: SearchMode = 'url';
   url = '';
   topic = '';
   dateFrom = '';
   dateTo = '';
-  onDate = '';
+  /** Mês YYYY-MM; na busca vira o intervalo do 1º ao último dia. */
+  onMonth = '';
+  /** 0 = nenhum; 1–12 = mês do dropdown. */
+  monthPickerMonth = 0;
+  monthPickerYear = new Date().getFullYear();
+  readonly monthLabels = [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+  ] as const;
+  /** Anos disponíveis no seletor (5 atrás → 2 à frente). */
+  readonly monthYearOptions: number[] = (() => {
+    const y = new Date().getFullYear();
+    return Array.from({ length: 8 }, (_, i) => y - 5 + i);
+  })();
 
   loading = false;
   error: string | null = null;
@@ -38,13 +66,58 @@ export class SearchComponent {
 
   glossaryOpen = false;
   paramsOpen = false;
+  analysisOpen = false;
+
+  /** Passo a passo do pipeline (linguagem simples, espelha o backend). */
+  readonly analysisSteps: AnalysisStep[] = [
+    {
+      title: 'Entrada',
+      detail:
+        'Você cola uma URL ou digita um tema (com período opcional). No tema, o sistema busca no acervo local e na web; só entram matérias que passam no filtro de relevância (veja o botão P).',
+    },
+    {
+      title: 'Baixar e ler a matéria',
+      detail:
+        'A página é baixada e o texto útil é extraído (título, corpo, data, autor). Links citados no artigo também são guardados. Se a mesma URL já estava no acervo e o conteúdo não mudou, a análise em cache pode ser reaproveitada.',
+    },
+    {
+      title: 'Fonte (catálogo)',
+      detail:
+        'O domínio é cruzado com o catálogo brasileiro: quem é o dono (ownership), o nível de autoridade (tier) e o viés editorial habitual (bias). Isso não diz se a matéria é verdadeira — só contextualiza o veículo.',
+    },
+    {
+      title: 'Tipo de conteúdo',
+      detail:
+        'Regras classificam se parece artigo, opinião, editorial, documento oficial etc. O tipo aparece em Dados Técnicos.',
+    },
+    {
+      title: 'Claims / F3 (afirmativas)',
+      detail:
+        'O texto é quebrado em frases checáveis (“X fez Y”). Cada uma recebe veredito e notas (temporal, geográfico, partidário, distorção, suporte) usando só o que está na própria matéria — sem consultar outras fontes ainda.',
+    },
+    {
+      title: 'Análise preliminar + resumo',
+      detail:
+        'Com fonte, tipo e claims, monta-se o veredito preliminar e o resumo em português simples (templates; sem depender de LLM). Tudo fica gravado no snapshot para a próxima vez.',
+    },
+    {
+      title: 'Cross-reference / F4 (cruzamento)',
+      detail:
+        'As afirmativas são comparadas com outras matérias (acervo do mesmo claim primeiro, depois lote/web). Em claims de economia, a busca prioriza oficiais do tema (BCB, IBGE, Fazenda, Tesouro, CVM…). O sistema vê quem apoia ou refuta, ownership, veto de fonte oficial e a calibração entre o veredito isolado (F3) e o consenso (F4).',
+    },
+    {
+      title: 'Exibição na tela',
+      detail:
+        'Ordem típica: preview do texto → links citados → resumo da análise → Dados Técnicos (tipo, fonte, tabelas de claims e cruzamento). Badge “Do acervo” indica análise reutilizada do cache.',
+    },
+  ];
 
   /** Critérios de aceite na busca por tema (espelha o backend). */
   readonly paramsRelevant: string[] = [
     'Camada 1 (claro sim): tokens do tema no texto + score lexical ≥ 0,30 (título vale mais que corpo).',
     'Também aceita: frase do tema no texto; muitos tokens no título; ou embeddings (semântico ≥ 0,48) com algum overlap.',
     'Camada 2 (zona cinza): soft lexical — algum overlap real e score ≥ 0,20.',
-    'Período De/Até/uma data: publicação do artigo dentro do intervalo (máx. 1 mês entre De e Até).',
+    'Período De/Até ou um mês: publicação do artigo dentro do intervalo (máx. 1 mês entre De e Até; “um mês” = mês civil inteiro).',
   ];
 
   /** Critérios de descarte na busca por tema. */
@@ -139,6 +212,16 @@ export class SearchComponent {
         'Quando existe documento ou fonte primária/oficial no conjunto, o veredito fica mais cauteloso se ela contradisser o resto.',
     },
     {
+      term: 'Fonte oficial (primary) por tema',
+      meaning:
+        'Órgãos e portais do Estado (tier primary). Em economia o cruzamento prioriza BCB, IBGE, Ipea, Fazenda, Tesouro, CVM, Receita e Portal da Transparência; em saúde Anvisa/DataSUS; em educação Inep. Sem tema claro, cai em gov.br + IBGE + BCB.',
+    },
+    {
+      term: 'Comparação BCB (economia)',
+      meaning:
+        'Quando a análise é de economia, o app busca séries anuais na API SGS do Banco Central (Selic, IPCA, dólar), grava no banco e compara números das afirmativas com o valor oficial do ano.',
+    },
+    {
       term: 'Score (pontuação) e Tier (nível)',
       meaning:
         'Score resume confiança/qualidade heurística. Tier classifica a autoridade da fonte (primária, secundária, baixa…).',
@@ -162,7 +245,9 @@ export class SearchComponent {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.glossaryOpen) {
+    if (this.analysisOpen) {
+      this.closeAnalysis();
+    } else if (this.glossaryOpen) {
       this.closeGlossary();
     } else if (this.paramsOpen) {
       this.closeParams();
@@ -177,28 +262,48 @@ export class SearchComponent {
     document.body.style.overflow = '';
   }
 
+  private anyModalOpen(): boolean {
+    return this.glossaryOpen || this.paramsOpen || this.analysisOpen;
+  }
+
   openGlossary(): void {
     this.paramsOpen = false;
+    this.analysisOpen = false;
     this.glossaryOpen = true;
     this.lockBodyScroll();
   }
 
   closeGlossary(): void {
     this.glossaryOpen = false;
-    if (!this.paramsOpen) {
+    if (!this.anyModalOpen()) {
       this.unlockBodyScroll();
     }
   }
 
   openParams(): void {
     this.glossaryOpen = false;
+    this.analysisOpen = false;
     this.paramsOpen = true;
     this.lockBodyScroll();
   }
 
   closeParams(): void {
     this.paramsOpen = false;
-    if (!this.glossaryOpen) {
+    if (!this.anyModalOpen()) {
+      this.unlockBodyScroll();
+    }
+  }
+
+  openAnalysis(): void {
+    this.glossaryOpen = false;
+    this.paramsOpen = false;
+    this.analysisOpen = true;
+    this.lockBodyScroll();
+  }
+
+  closeAnalysis(): void {
+    this.analysisOpen = false;
+    if (!this.anyModalOpen()) {
       this.unlockBodyScroll();
     }
   }
@@ -222,91 +327,91 @@ export class SearchComponent {
     this.expandedArticleIds = next;
   }
 
-  /** Formato: TermoEN (tradução) */
-  withPt(en: string, pt: string): string {
-    return `${en} (${pt})`;
+  /** Rótulo só em português (UI das tabelas e badges). */
+  withPt(_en: string, pt: string): string {
+    return pt;
   }
 
   biasWord(): string {
-    return this.withPt('Bias', 'viés / parcialidade');
+    return this.withPt('Bias', 'Viés / parcialidade');
   }
 
   claimsWord(): string {
-    return this.withPt('Claims', 'afirmativas');
+    return this.withPt('Claims', 'Afirmativas');
   }
 
   ownershipWord(): string {
-    return this.withPt('Ownership', 'grupo dono');
+    return this.withPt('Ownership', 'Grupo dono');
   }
 
   scoreWord(): string {
-    return this.withPt('Score', 'pontuação');
+    return this.withPt('Score', 'Pontuação');
   }
 
   tierWord(): string {
-    return this.withPt('Tier', 'nível de autoridade');
+    return this.withPt('Tier', 'Nível de autoridade');
   }
 
   framingWord(): string {
-    return this.withPt('Framing', 'enquadramento');
+    return this.withPt('Framing', 'Enquadramento');
   }
 
   biasLabel(label: string | null | undefined): string {
     const map: Record<string, string> = {
-      institutional: 'Institutional (institucional)',
-      left: 'Left (esquerda)',
-      center_left: 'Center-left (centro-esquerda)',
-      center: 'Center (centro)',
-      center_right: 'Center-right (centro-direita)',
-      right: 'Right (direita)',
-      unknown: 'Unknown (desconhecida)',
+      institutional: 'Institucional',
+      left: 'Esquerda',
+      center_left: 'Centro-esquerda',
+      center: 'Centro',
+      center_right: 'Centro-direita',
+      right: 'Direita',
+      unknown: 'Desconhecida',
     };
-    return map[label || 'unknown'] || label || 'Unknown (desconhecida)';
+    return map[label || 'unknown'] || label || 'Desconhecida';
   }
 
   contentTypeLabel(type: string | null | undefined): string {
     const map: Record<string, string> = {
-      official_document: 'Official document (documento oficial)',
-      press_release: 'Press release (comunicado)',
-      opinion: 'Opinion (opinião)',
-      editorial: 'Editorial (editorial)',
-      analysis: 'Analysis (análise)',
-      post: 'Post (publicação em rede)',
-      note: 'Note (nota)',
-      article: 'Article (artigo)',
+      official_document: 'Documento oficial',
+      press_release: 'Comunicado',
+      opinion: 'Opinião',
+      editorial: 'Editorial',
+      analysis: 'Análise',
+      post: 'Publicação em rede',
+      note: 'Nota',
+      article: 'Artigo',
     };
-    return map[type || 'article'] || type || 'Article (artigo)';
+    return map[type || 'article'] || type || 'Artigo';
   }
 
   verdictLabel(verdict: string | null | undefined): string {
     const map: Record<string, string> = {
-      supported: 'Supported (com suporte interno)',
-      disputed: 'Disputed (contestável)',
-      insufficient: 'Insufficient (evidência insuficiente)',
-      opinion: 'Opinion (opinião)',
+      supported: 'Com suporte interno',
+      disputed: 'Contestável',
+      insufficient: 'Evidência insuficiente',
+      opinion: 'Opinião',
     };
     return map[verdict || ''] || verdict || '—';
   }
 
   methodLabel(method: string | null | undefined): string {
     const map: Record<string, string> = {
-      heuristic: 'Heuristic (heurística / regras)',
-      llm: 'LLM (modelo de IA)',
-      'llm+source': 'LLM + source (IA + perfil da fonte)',
-      'heuristic+claims': 'Heuristic + claims (regras + afirmativas)',
-      'heuristic+nli': 'Heuristic + NLI (regras + rede neural)',
-      nli: 'NLI (rede neural de entailment)',
-      acervo: 'Acervo (análise reutilizada do banco)',
+      heuristic: 'Heurística / regras',
+      llm: 'Modelo de IA',
+      'llm+source': 'IA + perfil da fonte',
+      'heuristic+claims': 'Regras + afirmativas',
+      'heuristic+nli': 'Regras + rede neural',
+      nli: 'Rede neural (entailment)',
+      acervo: 'Acervo (reutilizada do banco)',
     };
     return map[method || ''] || method || '—';
   }
 
   authorityTierLabel(tier: string | null | undefined): string {
     const map: Record<string, string> = {
-      primary: 'Primary (primária / oficial)',
-      secondary: 'Secondary (secundária)',
-      low: 'Low (baixa)',
-      reputable: 'Reputable (reputável)',
+      primary: 'Primária / oficial',
+      secondary: 'Secundária',
+      low: 'Baixa',
+      reputable: 'Reputável',
     };
     if (!tier) {
       return '?';
@@ -316,28 +421,39 @@ export class SearchComponent {
 
   stanceLabel(stance: string | null | undefined): string {
     const map: Record<string, string> = {
-      supports: 'Supports (apoia)',
-      refutes: 'Refutes (refuta)',
-      related: 'Related (relacionada)',
-      unrelated: 'Unrelated (não relacionada)',
+      supports: 'Apoia',
+      refutes: 'Refuta',
+      related: 'Relacionada',
+      unrelated: 'Não relacionada',
     };
     return map[stance || ''] || stance || '—';
   }
 
+  bcbStatusLabel(status: string | null | undefined): string {
+    const map: Record<string, string> = {
+      match: 'Coincide com o BCB',
+      close: 'Próximo do BCB',
+      mismatch: 'Diverge do BCB',
+      no_official_data: 'Sem dado oficial no ano',
+      year_cached: 'Séries do ano em cache',
+    };
+    return map[status || ''] || status || '—';
+  }
+
   crossRefWord(): string {
-    return this.withPt('Cross-reference', 'cruzamento');
+    return this.withPt('Cross-reference', 'Cruzamento');
   }
 
   calibrationWord(): string {
-    return this.withPt('Calibration', 'calibração F3 vs F4');
+    return this.withPt('Calibration', 'Calibração F3 vs F4');
   }
 
   consensusWord(): string {
-    return this.withPt('Consensus', 'consenso entre fontes');
+    return this.withPt('Consensus', 'Consenso entre fontes');
   }
 
   vetoWord(): string {
-    return this.withPt('Primary veto', 'veto de fonte oficial');
+    return this.withPt('Primary veto', 'Veto de fonte oficial');
   }
 
   summaryParagraphs(text: string | null | undefined): string[] {
@@ -392,6 +508,62 @@ export class SearchComponent {
     return end > limit;
   }
 
+  setMonthPickerYear(year: number | string): void {
+    const y = Number(year);
+    if (!Number.isFinite(y)) {
+      return;
+    }
+    this.monthPickerYear = y;
+    this.syncOnMonthFromPickers();
+  }
+
+  setMonthPickerMonth(month: number | string): void {
+    const m = Number(month);
+    if (!Number.isFinite(m) || m < 0 || m > 12) {
+      return;
+    }
+    this.monthPickerMonth = m;
+    this.syncOnMonthFromPickers();
+  }
+
+  private syncOnMonthFromPickers(): void {
+    if (this.monthPickerMonth < 1 || this.monthPickerMonth > 12) {
+      this.onMonth = '';
+      return;
+    }
+    this.onMonth = `${this.monthPickerYear}-${String(this.monthPickerMonth).padStart(2, '0')}`;
+  }
+
+  clearOnMonth(): void {
+    this.onMonth = '';
+    this.monthPickerMonth = 0;
+  }
+
+  onMonthLabel(): string | null {
+    if (!/^\d{4}-\d{2}$/.test(this.onMonth)) {
+      return null;
+    }
+    const month = Number(this.onMonth.slice(5, 7));
+    if (month < 1 || month > 12) {
+      return null;
+    }
+    return `${this.monthLabels[month - 1]} de ${this.onMonth.slice(0, 4)}`;
+  }
+
+  /** Converte YYYY-MM no 1º e último dia do mês (ISO). */
+  private monthRange(ym: string): { from: string; to: string } | null {
+    if (!/^\d{4}-\d{2}$/.test(ym)) {
+      return null;
+    }
+    const [y, m] = ym.split('-').map((n) => Number(n));
+    if (m < 1 || m > 12) {
+      return null;
+    }
+    const lastDay = new Date(y, m, 0).getDate();
+    const to = `${ym}-${String(lastDay).padStart(2, '0')}`;
+    return { from: `${ym}-01`, to };
+  }
+
   submit(): void {
     this.error = null;
     this.articleResult = null;
@@ -424,13 +596,25 @@ export class SearchComponent {
       return;
     }
 
-    if (this.dateFrom && this.dateTo) {
-      if (this.dateFrom > this.dateTo) {
+    let dateFrom = this.dateFrom || null;
+    let dateTo = this.dateTo || null;
+
+    if (this.onMonth) {
+      const range = this.monthRange(this.onMonth);
+      if (!range) {
+        this.loading = false;
+        this.error = 'Informe um mês válido (AAAA-MM).';
+        return;
+      }
+      dateFrom = range.from;
+      dateTo = range.to;
+    } else if (dateFrom && dateTo) {
+      if (dateFrom > dateTo) {
         this.loading = false;
         this.error = 'A data De não pode ser depois de Até.';
         return;
       }
-      if (this.exceedsOneMonth(this.dateFrom, this.dateTo)) {
+      if (this.exceedsOneMonth(dateFrom, dateTo)) {
         this.loading = false;
         this.error = 'O intervalo entre De e Até não pode passar de 1 mês.';
         return;
@@ -440,9 +624,9 @@ export class SearchComponent {
     this.api
       .searchTopic({
         topic: this.topic.trim(),
-        date_from: this.dateFrom || null,
-        date_to: this.dateTo || null,
-        on_date: this.onDate || null,
+        date_from: dateFrom,
+        date_to: dateTo,
+        on_date: null,
       })
       .subscribe({
         next: (result) => {

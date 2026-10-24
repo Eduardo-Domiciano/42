@@ -28,8 +28,12 @@ Julgamento **curado e versionado** da orientação editorial / papel institucion
 
 Campo `version` no YAML. Ao mudar scores, incremente (ex.: `1.0.0` → `1.1.0`) e atualize `updated_at`. O seed grava `bias_catalog_version` em cada `Source`.
 
+## Fontes oficiais e temas
+
+Perfis `primary` em [`backend/source_profiles.yml`](../backend/source_profiles.yml) podem ter `topics` (ex.: `economia`, `saude`). O seed grava isso em `Source.topics`. No cruzamento F4, a busca web prioriza `site:` dos oficiais cujo tema bate com o claim (lexicon em `topic_officials.py`). Oficiais usam `bias_label: institutional`.
+
 ## Como revisar
 
-1. Edite `backend/catalog/bias_br.yml`
+1. Edite `backend/catalog/bias_br.yml` (e/ou `source_profiles.yml` para hosts/topics)
 2. Suba a API (o seed reaplica no startup)
 3. Documente a motivação no `note` da fonte

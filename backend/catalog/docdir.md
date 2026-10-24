@@ -6,4 +6,4 @@ Catálogos versionados usados no seed e na análise de fontes.
 
 | Arquivo | O que faz |
 | --- | --- |
-| `bias_br.yml` | Bias/ownership curado dos veículos e órgãos BR (v1). |
+| `bias_br.yml` | Bias/ownership curado dos veículos e órgãos BR (inclui oficiais de economia). |

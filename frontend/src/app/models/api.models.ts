@@ -88,6 +88,21 @@ export interface OutboundLinkOut {
   anchor_text: string | null;
 }
 
+export interface BcbComparisonOut {
+  claim_id: number;
+  claim_text: string;
+  indicator_slug: string;
+  indicator_name: string;
+  series_code: number;
+  year: number;
+  claimed_value: number | null;
+  official_value: number | null;
+  official_date: string | null;
+  status: string;
+  note: string;
+  from_cache: boolean;
+}
+
 export interface ArticleOut {
   id: number;
   url: string;
@@ -104,6 +119,7 @@ export interface ArticleOut {
   narrative_summary: string;
   analysis_cached?: boolean;
   outbound_links?: OutboundLinkOut[];
+  bcb_comparisons?: BcbComparisonOut[];
 }
 
 export interface TopicPanoramaOut {
