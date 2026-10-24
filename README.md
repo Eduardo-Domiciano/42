@@ -93,3 +93,11 @@ Sem os pacotes NN, o `/api/health` mostra `nn.packages_installed: false` e o pip
 - Busca web depende do DuckDuckGo e pode falhar/limitar resultados.
 - Bias do catálogo é julgamento curado, não prova de verdade.
 - Não substitui checagem humana nem fact-checkers profissionais.
+
+
+Analisei alguns projetos  do github para saber por onde começar e deixo aqui ,meus agradecimentos.
+
+[Fake News Detection](https://github.com/muqadasejaz/Fake-News-Detection) de [muqadasejaz](https://github.com/muqadasejaz )
+[Media Bias Fact Check Data Collection](https://github.com/CASOS-IDeaS-CMU/media_bias_fact_check_data_collection ) de [iem5](https://github.com/iem5 )
+[Fake News Detector](https://github.com/aubynsamuel/fake-news-detector ) de [aubynsamuel](https://github.com/aubynsamuel )
+[Frank Investigator](https://github.com/akitaonrails/frank_investigator ) de [akitaonrails](https://github.com/akitaonrails )
