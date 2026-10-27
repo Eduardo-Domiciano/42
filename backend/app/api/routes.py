@@ -9,6 +9,7 @@ from app.db import get_db
 from app.models import Article, TopicQuery
 from app.schemas import (
     ArticleOut,
+    IngestTextRequest,
     IngestUrlRequest,
     TopicQueryOut,
     TopicSearchRequest,
@@ -16,8 +17,10 @@ from app.schemas import (
 from app.services.analyze import build_panorama
 from app.services.article_response import build_article_out
 from app.services.fetch_article import fetch_and_store_article
+from app.services.ingest_text import store_pasted_text
 from app.services.llm_client import llm_configured
 from app.services.narrative_summary import build_topic_narrative
+from app.services.themes_catalog import list_themes, normalize_themes
 from app.services.topic_search import run_topic_search
 
 router = APIRouter(prefix="/api")
@@ -58,6 +61,12 @@ def get_bias_catalog() -> dict:
     }
 
 
+@router.get("/themes")
+def get_themes() -> dict:
+    """Temas oficiais selecionáveis (multi); hoje só economia."""
+    return {"themes": list_themes()}
+
+
 @router.post("/ingest/url", response_model=ArticleOut)
 def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> ArticleOut:
     try:
@@ -74,7 +83,45 @@ def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> Arti
     )
     if not article:
         raise HTTPException(status_code=500, detail="Artigo não persistido")
-    return build_article_out(db, article, allow_llm=True, run_crossref=True)
+    return build_article_out(
+        db,
+        article,
+        allow_llm=True,
+        run_crossref=True,
+        themes=normalize_themes(payload.themes),
+    )
+
+
+@router.post("/ingest/text", response_model=ArticleOut)
+def ingest_text(payload: IngestTextRequest, db: Session = Depends(get_db)) -> ArticleOut:
+    try:
+        article = store_pasted_text(
+            db,
+            text=payload.text,
+            title=payload.title,
+            published_at=payload.published_at,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400, detail=f"Falha ao gravar texto: {exc}"
+        ) from exc
+
+    article = db.scalar(
+        select(Article)
+        .options(joinedload(Article.source))
+        .where(Article.id == article.id)
+    )
+    if not article:
+        raise HTTPException(status_code=500, detail="Texto não persistido")
+    return build_article_out(
+        db,
+        article,
+        allow_llm=True,
+        run_crossref=True,
+        themes=normalize_themes(payload.themes),
+    )
 
 
 @router.post("/search/topic", response_model=TopicQueryOut)
@@ -100,6 +147,7 @@ def search_topic(
         date_from=payload.date_from,
         date_to=payload.date_to,
         on_date=payload.on_date,
+        themes=normalize_themes(payload.themes),
     )
 
 

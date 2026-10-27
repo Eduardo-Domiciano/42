@@ -9,9 +9,11 @@ Regras de negócio da coleta e análise preliminar.
 | `__init__.py` | Marca o pacote. |
 | `seed.py` | Carrega fontes BR do YAML (tier, topics, host_patterns, source_role). |
 | `fetch_article.py` | Baixa URL, extrai corpo/links citados e grava artigo; resolve fonte multi-host. |
-| `topic_officials.py` | Detecta tema do claim e monta `site:` dos oficiais primary. |
+| `ingest_text.py` | Grava texto colado (sem URL) e prepara para o mesmo pipeline. |
+| `topic_officials.py` | Monta `site:` dos oficiais primary conforme temas selecionados. |
 | `bcb_sgs.py` | API SGS do BCB + cache anual (`bcb_series_annual`). |
-| `bcb_compare.py` | Compara claims de economia com séries BCB do ano. |
+| `bcb_compare.py` | Compara claims com séries BCB se o tema economia foi selecionado. |
+| `themes_catalog.py` | Temas oficiais selecionáveis (hoje: economia). |
 | `topic_search.py` | Busca local + web por tema/período com filtro de relevância. |
 | `topic_relevance.py` | Tokeniza tema, score lexical/semântico e aceita/descarta (camadas). |
 | `topic_relevance_llm.py` | Juiz LLM opcional (desligado; filtro usa heurística). |

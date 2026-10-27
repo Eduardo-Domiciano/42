@@ -1,11 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { Component, HostListener, inject } from '@angular/core';
+import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ArticleOut, TopicQueryOut } from '../../models/api.models';
+import { ArticleOut, ThemeOption, TopicQueryOut } from '../../models/api.models';
 import { ApiService } from '../../services/api.service';
 
-type SearchMode = 'url' | 'topic';
+type SearchMode = 'url' | 'topic' | 'text';
 
 export interface GlossaryEntry {
   term: string;
@@ -24,14 +24,22 @@ export interface AnalysisStep {
   templateUrl: './search.component.html',
   styleUrl: './search.component.css',
 })
-export class SearchComponent {
+export class SearchComponent implements OnInit {
   private readonly api = inject(ApiService);
 
   mode: SearchMode = 'url';
   url = '';
   topic = '';
+  pastedText = '';
+  pastedTitle = '';
+  pastedDate = '';
   dateFrom = '';
   dateTo = '';
+  /** Temas oficiais disponíveis (API); multi-seleção. */
+  availableThemes: ThemeOption[] = [];
+  /** Slugs marcados pelo usuário (ex.: economia). */
+  selectedThemes: string[] = [];
+  themesOpen = false;
   /** Mês YYYY-MM; na busca vira o intervalo do 1º ao último dia. */
   onMonth = '';
   /** 0 = nenhum; 1–12 = mês do dropdown. */
@@ -73,7 +81,7 @@ export class SearchComponent {
     {
       title: 'Entrada',
       detail:
-        'Você cola uma URL ou digita um tema (com período opcional). No tema, o sistema busca no acervo local e na web; só entram matérias que passam no filtro de relevância (veja o botão P).',
+        'Você cola uma URL, cola o texto da matéria ou digita um tema (com período opcional). No tema, o sistema busca no acervo local e na web; só entram matérias que passam no filtro de relevância (veja o botão P).',
     },
     {
       title: 'Baixar e ler a matéria',
@@ -101,16 +109,71 @@ export class SearchComponent {
         'Com fonte, tipo e claims, monta-se o veredito preliminar e o resumo em português simples (templates; sem depender de LLM). Tudo fica gravado no snapshot para a próxima vez.',
     },
     {
+      title: 'Temas oficiais (opcional)',
+      detail:
+        'No formulário você marca um ou mais temas (hoje: Economia). Com Economia, a comparação numérica usa séries do Banco Central e o cruzamento prioriza fontes oficiais desse tema. Sem tema marcado, essas análises extras não rodam.',
+    },
+    {
       title: 'Cross-reference / F4 (cruzamento)',
       detail:
-        'As afirmativas são comparadas com outras matérias (acervo do mesmo claim primeiro, depois lote/web). Em claims de economia, a busca prioriza oficiais do tema (BCB, IBGE, Fazenda, Tesouro, CVM…). O sistema vê quem apoia ou refuta, ownership, veto de fonte oficial e a calibração entre o veredito isolado (F3) e o consenso (F4).',
+        'As afirmativas são comparadas com outras matérias (acervo do mesmo claim primeiro, depois lote/web). Se você marcou temas oficiais, a busca web prioriza órgãos desses temas (ex.: BCB, IBGE, Fazenda). O sistema vê quem apoia ou refuta, ownership, veto de fonte oficial e a calibração entre o veredito isolado (F3) e o consenso (F4).',
     },
     {
       title: 'Exibição na tela',
       detail:
-        'Ordem típica: preview do texto → links citados → resumo da análise → Dados Técnicos (tipo, fonte, tabelas de claims e cruzamento). Badge “Do acervo” indica análise reutilizada do cache.',
+        'Ordem típica: preview do texto → links citados → resumo da análise → (se Economia) comparação BCB → Dados Técnicos. Badge “Do acervo” indica análise reutilizada do cache.',
     },
   ];
+
+  ngOnInit(): void {
+    this.api.listThemes().subscribe({
+      next: (res) => {
+        this.availableThemes = res.themes ?? [];
+      },
+      error: () => {
+        this.availableThemes = [
+          {
+            slug: 'economia',
+            label: 'Economia',
+            description:
+              'Confronta números do texto com séries oficiais do Banco Central (Selic, IPCA, dólar).',
+          },
+        ];
+      },
+    });
+  }
+
+  isThemeSelected(slug: string): boolean {
+    return this.selectedThemes.includes(slug);
+  }
+
+  toggleTheme(slug: string, checked: boolean): void {
+    if (checked) {
+      if (!this.selectedThemes.includes(slug)) {
+        this.selectedThemes = [...this.selectedThemes, slug];
+      }
+      return;
+    }
+    this.selectedThemes = this.selectedThemes.filter((s) => s !== slug);
+  }
+
+  themesSummary(): string {
+    if (!this.selectedThemes.length) {
+      return 'Nenhum (opcional)';
+    }
+    const labels = this.availableThemes
+      .filter((t) => this.selectedThemes.includes(t.slug))
+      .map((t) => t.label);
+    return labels.length ? labels.join(', ') : this.selectedThemes.join(', ');
+  }
+
+  toggleThemesPanel(): void {
+    this.themesOpen = !this.themesOpen;
+  }
+
+  closeThemesPanel(): void {
+    this.themesOpen = false;
+  }
 
   /** Critérios de aceite na busca por tema (espelha o backend). */
   readonly paramsRelevant: string[] = [
@@ -214,12 +277,17 @@ export class SearchComponent {
     {
       term: 'Fonte oficial (primary) por tema',
       meaning:
-        'Órgãos e portais do Estado (tier primary). Em economia o cruzamento prioriza BCB, IBGE, Ipea, Fazenda, Tesouro, CVM, Receita e Portal da Transparência; em saúde Anvisa/DataSUS; em educação Inep. Sem tema claro, cai em gov.br + IBGE + BCB.',
+        'Órgãos e portais do Estado (tier primary). Se você marcar Economia, o cruzamento prioriza BCB, IBGE, Ipea, Fazenda, Tesouro, CVM etc. Sem tema marcado, a busca web não força esses sites oficiais.',
+    },
+    {
+      term: 'Temas oficiais',
+      meaning:
+        'Seleção opcional no formulário (multi). Hoje: Economia. Define se entram análises extras com fontes oficiais daquele tema.',
     },
     {
       term: 'Comparação BCB (economia)',
       meaning:
-        'Quando a análise é de economia, o app busca séries anuais na API SGS do Banco Central (Selic, IPCA, dólar), grava no banco e compara números das afirmativas com o valor oficial do ano.',
+        'Só roda se você marcar o tema Economia. Busca séries anuais na API SGS do Banco Central (Selic, IPCA, dólar), grava no banco e compara números das afirmativas com o valor oficial do ano.',
     },
     {
       term: 'Score (pontuação) e Tier (nível)',
@@ -245,7 +313,9 @@ export class SearchComponent {
 
   @HostListener('document:keydown.escape')
   onEscape(): void {
-    if (this.analysisOpen) {
+    if (this.themesOpen) {
+      this.closeThemesPanel();
+    } else if (this.analysisOpen) {
       this.closeAnalysis();
     } else if (this.glossaryOpen) {
       this.closeGlossary();
@@ -436,6 +506,7 @@ export class SearchComponent {
       mismatch: 'Diverge do BCB',
       no_official_data: 'Sem dado oficial no ano',
       year_cached: 'Séries do ano em cache',
+      official_series: 'Dado oficial (referência)',
     };
     return map[status || ''] || status || '—';
   }
@@ -577,7 +648,7 @@ export class SearchComponent {
         this.error = 'Informe uma URL de notícia.';
         return;
       }
-      this.api.ingestUrl(this.url.trim()).subscribe({
+      this.api.ingestUrl(this.url.trim(), this.selectedThemes).subscribe({
         next: (result) => {
           this.articleResult = result;
           this.loading = false;
@@ -587,6 +658,33 @@ export class SearchComponent {
           this.loading = false;
         },
       });
+      return;
+    }
+
+    if (this.mode === 'text') {
+      const body = this.pastedText.trim();
+      if (body.length < 80) {
+        this.loading = false;
+        this.error = 'Cole um texto com pelo menos cerca de 80 caracteres.';
+        return;
+      }
+      this.api
+        .ingestText(
+          body,
+          this.pastedTitle,
+          this.pastedDate || null,
+          this.selectedThemes,
+        )
+        .subscribe({
+          next: (result) => {
+            this.articleResult = result;
+            this.loading = false;
+          },
+          error: (err) => {
+            this.error = err?.error?.detail || 'Falha ao analisar o texto.';
+            this.loading = false;
+          },
+        });
       return;
     }
 
@@ -627,6 +725,7 @@ export class SearchComponent {
         date_from: dateFrom,
         date_to: dateTo,
         on_date: null,
+        themes: this.selectedThemes,
       })
       .subscribe({
         next: (result) => {

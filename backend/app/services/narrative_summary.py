@@ -92,117 +92,17 @@ def build_article_narrative_plain(
     claims: list[ClaimAssessmentOut],
     cross_references: list[CrossReferenceOut],
 ) -> str:
-    """Prosa humana por regras — próximo do resumo que a LLM gerava."""
+    """Resumo em prosa acessível — pelo menos um parágrafo bem humanizado."""
     paragraphs: list[str] = []
-    fonte = source.name if source else "uma fonte não catalogada"
-    titulo = _clip(title or "Sem título", 140)
+    if source and source.name:
+        fonte_frase = f"do {source.name}"
+    else:
+        fonte_frase = "de um veículo ainda não catalogado"
+    titulo = _clip(title or "esta matéria", 140)
     tipo = "reportagem"
     if analysis:
         tipo = _TYPE_PT.get(analysis.content_type_guess, "matéria")
 
-    # §1 — o que a matéria aborda
-    if claims:
-        lead_claim = _clip(claims[0].claim.canonical_text, 180)
-        p1 = (
-            f"O artigo do {fonte} ({tipo}) trata de “{titulo}”. "
-            f"Entre as afirmativas que a análise destacou está: “{lead_claim}”."
-        )
-    else:
-        p1 = (
-            f"O artigo do {fonte} ({tipo}) trata de “{titulo}”. "
-            f"Não foi possível extrair afirmativas claramente checáveis — "
-            f"o texto pode ser genérico, curto ou predominantemente opinativo."
-        )
-    if analysis and analysis.source_partiality_note:
-        note = analysis.source_partiality_note.strip()
-        if note and len(note) < 220:
-            p1 += f" {note}"
-    paragraphs.append(p1)
-
-    # §2 — afirmativas em linguagem simples
-    if len(claims) >= 1:
-        parts: list[str] = []
-        for c in claims[:3]:
-            txt = _clip(c.claim.canonical_text, 120)
-            parts.append(f"“{txt}” ({_claim_plain_note(c)})")
-        if len(claims) == 1:
-            p2 = f"A principal afirmativa observada é {parts[0]}."
-        else:
-            joined = "; ".join(parts[:-1])
-            p2 = (
-                f"A matéria destaca estas afirmativas: {joined}; "
-                f"e ainda {parts[-1]}."
-            )
-        weak = [c for c in claims if c.score_internal_support < 0.4]
-        strong = [
-            c
-            for c in claims
-            if c.score_internal_support >= 0.55 and c.score_distortion <= 0.45
-        ]
-        if weak and strong:
-            p2 += (
-                " Em resumo: algumas passam a impressão de ter base no texto, "
-                "enquanto outras só afirmam, sem evidência que corrobore."
-            )
-        elif weak and not strong:
-            p2 += (
-                " No conjunto, prevalecem trechos que afirmam sem apresentar "
-                "evidência concreta no próprio artigo — muitas vezes só opinião "
-                "ou fala de especialistas sem dado verificável ao lado."
-            )
-        elif strong and not weak:
-            p2 += (
-                " No conjunto, as afirmativas trazem algum lastro interno "
-                "(números, citações ou referências no texto)."
-            )
-        paragraphs.append(p2)
-
-    # §3 — cruzamento / outras fontes
-    if cross_references:
-        supports = sum(
-            1 for x in cross_references for e in x.evidences if e.stance == "supports"
-        )
-        refutes = sum(
-            1 for x in cross_references for e in x.evidences if e.stance == "refutes"
-        )
-        n = len(cross_references)
-        links = []
-        for x in cross_references[:2]:
-            for e in x.evidences[:2]:
-                if e.article_url and e.article_url not in links:
-                    links.append(e.article_url)
-        p3 = (
-            f"Ao confrontar {n} afirmativa(s) com outras matérias, "
-            f"apareceram {supports} trecho(s) que apontam na mesma direção "
-            f"e {refutes} que contestam ou contradizem."
-        )
-        if refutes > supports:
-            p3 += (
-                " As fontes consultadas, no geral, não bastam para confirmar "
-                "as afirmativas — há mais contestação do que respaldo externo."
-            )
-        elif supports > refutes and supports > 0:
-            p3 += (
-                " Há algum eco em outras publicações, mas isso ainda não prova "
-                "verdade absoluta — só indica convergência parcial."
-            )
-        else:
-            p3 += (
-                " O cruzamento ficou pouco conclusivo: poucas evidências "
-                "externas úteis para confirmar ou refutar."
-            )
-        if links:
-            shown = ", ".join(links[:3])
-            p3 += f" Fontes usadas no cruzamento incluem: {shown}."
-        paragraphs.append(p3)
-    else:
-        paragraphs.append(
-            "Não houve cruzamento útil com outras matérias neste momento "
-            "(falta de pares na busca, paywall ou tema muito específico). "
-            "A leitura fica dependente só do que está neste artigo."
-        )
-
-    # §4 — tom + veredito acessível
     bias_key = None
     if analysis:
         bias_key = analysis.bias_label
@@ -210,17 +110,124 @@ def build_article_narrative_plain(
         bias_key = source.bias_label
     bias_txt = _BIAS_PLAIN.get(bias_key or "unknown", _BIAS_PLAIN["unknown"])
 
-    closing = (
-        f"O título sugere o enquadramento da pauta; a fonte tem {bias_txt}. "
-    )
-    if analysis:
-        closing += (
-            f"Pela análise automática, {_verdict_plain(analysis.preliminary_verdict)}. "
+    # §1 — parágrafo de abertura, linguagem do dia a dia
+    if claims:
+        lead = _clip(claims[0].claim.canonical_text, 160)
+        opening = (
+            f"Em termos simples: esta {tipo} {fonte_frase}, intitulada “{titulo}”, "
+            f"conta uma história centrada na ideia de que “{lead}”. "
+            f"A ferramenta leu o texto do começo ao fim, procurou o que dá para "
+            f"checar com calma e depois olhou se outras publicações dizem a mesma "
+            f"coisa ou discordam — tudo para ajudar quem não acompanha o jargão "
+            f"técnico a formar uma opinião mais segura."
         )
-    closing += (
-        "Isso é uma leitura guiada para o leitor comum — "
-        "não substitui checagem humana nem prova verdade absoluta."
+    else:
+        opening = (
+            f"Em termos simples: esta {tipo} {fonte_frase}, intitulada “{titulo}”, "
+            f"foi lida pela ferramenta, mas quase não apareceu frase clara o "
+            f"bastante para ser checada (texto curto, genérico ou bem opinativo). "
+            f"Ainda assim vale ler o que segue com atenção: o tom da fonte e o "
+            f"que falta de base no texto também dizem bastante sobre a matéria."
+        )
+    if analysis:
+        opening += (
+            f" De cara, a leitura automática sugere que "
+            f"{_verdict_plain(analysis.preliminary_verdict)}, "
+            f"e o veículo costuma ter {bias_txt}."
+        )
+    else:
+        opening += f" O veículo costuma ter {bias_txt}."
+    paragraphs.append(opening)
+
+    # §2 — o que a matéria afirma, sem jargão
+    if claims:
+        weak = [c for c in claims if c.score_internal_support < 0.4]
+        strong = [
+            c
+            for c in claims
+            if c.score_internal_support >= 0.55 and c.score_distortion <= 0.45
+        ]
+        samples: list[str] = []
+        for c in claims[:3]:
+            txt = _clip(c.claim.canonical_text, 110)
+            samples.append(f"“{txt}” ({_claim_plain_note(c)})")
+        if len(samples) == 1:
+            p2 = f"O ponto principal que saltou do texto é {samples[0]}."
+        else:
+            p2 = (
+                "Entre as ideias que a matéria coloca na mesa estão "
+                + "; ".join(samples[:-1])
+                + f"; e também {samples[-1]}."
+            )
+        if weak and not strong:
+            p2 += (
+                " No geral, o texto pede que a gente acredite sem mostrar bem "
+                "de onde veio o número, a citação ou a prova — o que deixa a "
+                "história mais frágil para quem quer conferir."
+            )
+        elif strong and not weak:
+            p2 += (
+                " Em vários trechos há números, falas ou referências dentro "
+                "da própria matéria, o que ajuda a acompanhar o raciocínio "
+                "mesmo sem ser especialista."
+            )
+        elif weak and strong:
+            p2 += (
+                " Há um pouco de cada: partes com alguma base no texto e "
+                "outras que soam mais como opinião solta."
+            )
+        paragraphs.append(p2)
+
+    # §3 — o que outras fontes disseram
+    if cross_references:
+        supports = sum(
+            1 for x in cross_references for e in x.evidences if e.stance == "supports"
+        )
+        refutes = sum(
+            1 for x in cross_references for e in x.evidences if e.stance == "refutes"
+        )
+        p3 = (
+            f"Quando a mesma história foi procurada em outras matérias, "
+            f"surgiram {supports} sinal(is) na mesma direção e {refutes} "
+            f"que puxam para o lado contrário."
+        )
+        if refutes > supports:
+            p3 += (
+                " Ou seja: o que esta reportagem afirma não encontra um "
+                "coro tranquilo do lado de fora — há mais gente discordando "
+                "ou apontando outra versão."
+            )
+        elif supports > refutes and supports > 0:
+            p3 += (
+                " Há alguma coincidência com outras publicações, o que "
+                "aumenta a confiança na leitura, mas ainda não fecha o "
+                "caso como verdade absoluta."
+            )
+        else:
+            p3 += (
+                " O cenário externo ficou meio nebuloso: poucas matérias "
+                "úteis para confirmar ou desmentir com segurança."
+            )
+        paragraphs.append(p3)
+    else:
+        paragraphs.append(
+            "Desta vez não deu para cruzar bem com outras reportagens "
+            "(poucos resultados, página bloqueada ou assunto muito "
+            "específico). Por isso a leitura depende sobretudo do que "
+            "está escrito nesta própria matéria."
+        )
+
+    # §4 — fechamento amigável
+    closing = (
+        "Nada disso substitui o seu julgamento nem uma checagem humana "
+        "mais profunda: pense neste texto como um guia de leitura — "
+        "uma conversa franca sobre o que a matéria mostra, o que omite "
+        "e o que outras vozes dizem a respeito."
     )
+    if analysis and analysis.source_partiality_note:
+        note = analysis.source_partiality_note.strip()
+        if note and len(note) < 200:
+            closing = f"{note} {closing}"
     paragraphs.append(closing)
 
     return "\n\n".join(paragraphs)
@@ -399,37 +406,46 @@ def build_topic_narrative_plain(
     panorama: TopicPanoramaOut | None,
     articles_count: int,
 ) -> str:
-    """Um parágrafo humano + lista estruturada para a UI do tema."""
+    """Parágrafo humanizado + detalhe estruturado para a UI do tema."""
     if not panorama:
         prose = (
-            f"Sobre o tema “{topic}”, a busca devolveu {articles_count} artigo(s), "
-            f"sem panorama consolidado o bastante para um resumo mais fino."
+            f"Em termos simples: a busca por “{topic}” trouxe {articles_count} "
+            f"matéria(s), mas ainda não deu para montar um panorama claro — "
+            f"faltou variedade de fontes ou o tema veio muito estreito. Vale "
+            f"abrir os textos um a um e ler com calma."
         )
-        return "\n".join(["## Em linguagem simples", f"- {prose}", ""])
+        return "\n\n".join([prose])
 
     p = panorama
     prose = (
-        f"Sobre “{topic}”, entraram {p.total_articles} matéria(s) de "
-        f"{p.distinct_sources} fonte(s) ({p.distinct_ownerships} grupo(s) dono distintos). "
-        f"Foram avaliadas {p.total_claims} afirmativa(s) e feitos "
-        f"{p.total_cross_refs} cruzamento(s) com outras publicações."
+        f"Em termos simples: ao procurar “{topic}”, a ferramenta reuniu "
+        f"{p.total_articles} matéria(s) de {p.distinct_sources} veículo(s) "
+        f"diferentes ({p.distinct_ownerships} grupo(s) de mídia). Em cada "
+        f"texto, ela separou o que dá para checar e olhou se outras "
+        f"publicações confirmam ou discordam — no total, "
+        f"{p.total_claims} ideia(s) checável(is) e {p.total_cross_refs} "
+        f"comparação(ões) com o restante da imprensa."
     )
     if p.discarded_relevance:
         prose += (
-            f" O filtro deixou de fora {p.discarded_relevance} candidato(s) "
-            f"por parecerem pouco ligados ao tema."
+            f" Alguns candidatos ({p.discarded_relevance}) ficaram de fora "
+            f"porque pareciam só de passagem no assunto, não o foco da pauta."
         )
     if p.avg_calibration is not None:
         prose += (
-            f" Em média, o alinhamento entre o que o artigo diz e o que outras "
-            f"fontes mostram ficou em {p.avg_calibration:.0%}."
+            f" Em média, o que cada artigo diz e o que outras fontes mostram "
+            f"coincidem em cerca de {p.avg_calibration:.0%} — um termômetro "
+            f"grosseiro de alinhamento, não um carimbo de verdade."
         )
-    prose += " Leitura guiada — não é veredito final."
+    prose += (
+        " Use este panorama como mapa de leitura: ele aponta caminhos, "
+        "mas não substitui o seu julgamento."
+    )
 
     technical = build_topic_narrative_technical(
         topic=topic, panorama=panorama, articles_count=articles_count
     )
-    return "\n".join(["## Em linguagem simples", f"- {prose}", "", technical])
+    return "\n\n".join([prose, technical])
 
 
 def build_topic_narrative(

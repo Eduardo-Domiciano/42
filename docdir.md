@@ -18,6 +18,7 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | `backend/` | API FastAPI, modelos e seed de fontes BR. |
 | `frontend/` | App Angular com a tela de busca. |
 | `docs/` | Modelo de `docdir` do projeto. |
+| `img/` | Ícones e imagens de referência (ex.: GitHub). |
 | `google_gemma-4-e4b_current/` | Referência de modelo (não usada no runtime). |
 | `_reference/` | Cópias locais dos projetos originais (fora do Git). |
 

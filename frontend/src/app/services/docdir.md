@@ -6,4 +6,4 @@ Clientes de API.
 
 | Arquivo | O que faz |
 | --- | --- |
-| `api.service.ts` | HTTP para ingestão de URL e busca por tema. |
+| `api.service.ts` | HTTP: temas, ingestão URL/texto e busca por tema (com themes). |

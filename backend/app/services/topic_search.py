@@ -103,6 +103,7 @@ def _article_out(
     allow_llm: bool,
     allow_narrative_llm: bool,
     peer_pool: list[Article],
+    themes: list[str] | None = None,
 ) -> ArticleOut:
     return build_article_out(
         db,
@@ -111,6 +112,7 @@ def _article_out(
         allow_narrative_llm=allow_narrative_llm,
         run_crossref=settings.crossref_enabled and settings.crossref_on_topic,
         peer_pool=peer_pool,
+        themes=themes,
     )
 
 
@@ -120,6 +122,7 @@ def run_topic_search(
     date_from: date | None = None,
     date_to: date | None = None,
     on_date: date | None = None,
+    themes: list[str] | None = None,
 ) -> TopicQueryOut:
     date_from, date_to = _resolve_range(date_from, date_to, on_date)
     topic = topic.strip()
@@ -216,6 +219,7 @@ def run_topic_search(
             allow_llm=allow_llm,
             allow_narrative_llm=allow_narrative_llm,
             peer_pool=collected,
+            themes=themes,
         )
         outs.append(out)
         claims_map[article.id] = out.claims

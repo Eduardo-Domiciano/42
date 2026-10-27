@@ -8,6 +8,14 @@ from pydantic import BaseModel, Field, HttpUrl
 class IngestUrlRequest(BaseModel):
     url: HttpUrl
     refresh: bool = False
+    themes: list[str] = Field(default_factory=list)
+
+
+class IngestTextRequest(BaseModel):
+    text: str = Field(min_length=80, max_length=100_000)
+    title: str | None = Field(default=None, max_length=400)
+    published_at: date | None = None
+    themes: list[str] = Field(default_factory=list)
 
 
 class TopicSearchRequest(BaseModel):
@@ -15,6 +23,7 @@ class TopicSearchRequest(BaseModel):
     date_from: date | None = None
     date_to: date | None = None
     on_date: date | None = None
+    themes: list[str] = Field(default_factory=list)
 
 
 class OutboundLinkOut(BaseModel):
@@ -141,6 +150,7 @@ class ArticleOut(BaseModel):
     analysis_cached: bool = False
     outbound_links: list[OutboundLinkOut] = Field(default_factory=list)
     bcb_comparisons: list[BcbComparisonOut] = Field(default_factory=list)
+    analysis_themes: list[str] = Field(default_factory=list)
 
     model_config = {"from_attributes": True}
 

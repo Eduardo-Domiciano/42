@@ -88,6 +88,12 @@ export interface OutboundLinkOut {
   anchor_text: string | null;
 }
 
+export interface ThemeOption {
+  slug: string;
+  label: string;
+  description: string;
+}
+
 export interface BcbComparisonOut {
   claim_id: number;
   claim_text: string;
@@ -120,6 +126,7 @@ export interface ArticleOut {
   analysis_cached?: boolean;
   outbound_links?: OutboundLinkOut[];
   bcb_comparisons?: BcbComparisonOut[];
+  analysis_themes?: string[];
 }
 
 export interface TopicPanoramaOut {

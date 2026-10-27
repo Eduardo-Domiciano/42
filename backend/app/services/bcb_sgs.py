@@ -16,23 +16,22 @@ logger = logging.getLogger(__name__)
 
 SGS_BASE = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.{code}/dados"
 
-# Séries oficiais usadas na comparação econômica (código SGS).
+# Séries oficiais (codes = tentativas em ordem; 1º que retornar dados vence).
 BCB_SERIES: dict[str, dict] = {
     "selic_meta": {
-        # SGS 4189 — Taxa Selic (% a.a.); 4326 costuma 404 na API pública
-        "code": 4189,
+        "codes": [1178, 4189, 432],
         "name": "Taxa Selic (% a.a.)",
     },
     "ipca_mensal": {
-        "code": 433,
+        "codes": [433],
         "name": "IPCA variação mensal (%)",
     },
     "ipca_12m": {
-        "code": 13522,
+        "codes": [13522],
         "name": "IPCA acumulado 12 meses (%)",
     },
     "usd_venda": {
-        "code": 1,
+        "codes": [1],
         "name": "Dólar americano venda (R$)",
     },
 }
@@ -84,25 +83,59 @@ def get_cached_series(
     )
 
 
+def get_cached_by_slug(
+    db: Session, slug: str, year: int
+) -> BcbSeriesAnnual | None:
+    """Prefere linha com pontos; senão qualquer do slug+ano."""
+    rows = list(
+        db.scalars(
+            select(BcbSeriesAnnual).where(
+                BcbSeriesAnnual.series_slug == slug,
+                BcbSeriesAnnual.year == year,
+            )
+        ).all()
+    )
+    with_points = [
+        r for r in rows if r.points_json not in (None, "", "[]")
+    ]
+    return with_points[0] if with_points else (rows[0] if rows else None)
+
+
 def ensure_series_year(
     db: Session,
     *,
     slug: str,
-    series_code: int,
+    series_codes: list[int],
     series_name: str,
     year: int,
     force: bool = False,
 ) -> BcbSeriesAnnual:
-    """Garante série+ano no banco; busca na API só se faltar (ou force)."""
-    existing = get_cached_series(db, series_code, year)
+    """Garante série+ano no banco; tenta vários códigos SGS se preciso."""
+    existing = get_cached_by_slug(db, slug, year)
     if existing and not force and existing.points_json not in (None, "", "[]"):
         return existing
 
-    try:
-        points = fetch_series_year(series_code, year)
-    except Exception as exc:
-        logger.warning("Falha SGS %s/%s: %s", series_code, year, exc)
-        points = []
+    points: list[dict] = []
+    used_code = series_codes[0]
+    last_exc: Exception | None = None
+    for code in series_codes:
+        used_code = code
+        try:
+            points = fetch_series_year(code, year)
+            if points:
+                break
+        except Exception as exc:
+            last_exc = exc
+            logger.warning("Falha SGS %s/%s: %s", code, year, exc)
+            points = []
+
+    if not points and last_exc and not existing:
+        logger.warning(
+            "Nenhum código SGS respondeu para %s/%s (último: %s)",
+            slug,
+            year,
+            last_exc,
+        )
 
     # Não apaga cache bom se a API falhou ou voltou vazia.
     if not points and existing and existing.points_json not in (None, "", "[]"):
@@ -110,18 +143,22 @@ def ensure_series_year(
 
     payload = json.dumps(points, ensure_ascii=False)
     now = datetime.utcnow()
-    if existing:
+
+    # Atualiza linha do código usado, se existir
+    row = get_cached_series(db, used_code, year) or existing
+    if row:
         if points or force:
-            existing.series_slug = slug
-            existing.series_name = series_name
-            existing.points_json = payload
-            existing.fetched_at = now
+            row.series_slug = slug
+            row.series_name = series_name
+            row.series_code = used_code
+            row.points_json = payload
+            row.fetched_at = now
             db.commit()
-            db.refresh(existing)
-        return existing
+            db.refresh(row)
+        return row
 
     row = BcbSeriesAnnual(
-        series_code=series_code,
+        series_code=used_code,
         series_slug=slug,
         series_name=series_name,
         year=year,
@@ -138,11 +175,13 @@ def ensure_economy_year(db: Session, year: int, *, force: bool = False) -> list[
     """Garante todas as séries econômicas do ano no cache."""
     rows: list[BcbSeriesAnnual] = []
     for slug, meta in BCB_SERIES.items():
+        codes = meta.get("codes") or [meta.get("code")]
+        codes = [int(c) for c in codes if c is not None]
         rows.append(
             ensure_series_year(
                 db,
                 slug=slug,
-                series_code=int(meta["code"]),
+                series_codes=codes,
                 series_name=str(meta["name"]),
                 year=year,
                 force=force,

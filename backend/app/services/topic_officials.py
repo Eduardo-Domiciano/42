@@ -156,15 +156,25 @@ def build_official_site_clause(domains: list[str], *, limit: int = 10) -> str:
     return " OR ".join(f"site:{d}" for d in picked)
 
 
-def official_search_query(db: Session, claim_text: str, base_query: str) -> str:
+def official_search_query(
+    db: Session,
+    claim_text: str,
+    base_query: str,
+    themes: list[str] | None = None,
+) -> str:
     """
-    Query DDG priorizando oficiais do tema detectado no claim.
-    Sem tema → fallback gov.br + ibge + bcb.
+    Query DDG priorizando oficiais dos temas selecionados pelo usuário.
+    Sem tema selecionado → não força site: de oficiais (só a query base).
     """
-    topics = detect_topics(claim_text)
-    domains = official_domains_for_topics(db, topics) if topics else []
-    clause = build_official_site_clause(domains)
     q = (base_query or "").strip()
+    if themes is not None:
+        topics = [t.strip().lower() for t in themes if t and str(t).strip()]
+    else:
+        topics = detect_topics(claim_text)
+    if not topics:
+        return q
+    domains = official_domains_for_topics(db, topics)
+    clause = build_official_site_clause(domains)
     if not q:
         return clause
     # Evita duplicar site: se o refine já colocou algo.

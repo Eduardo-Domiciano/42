@@ -189,17 +189,26 @@ def _local_peers(
     return peers[: settings.crossref_max_peers]
 
 
-def _fetch_web_peers(db: Session, claim_text: str, root: Article) -> list[Article]:
+def _fetch_web_peers(
+    db: Session,
+    claim_text: str,
+    root: Article,
+    themes: list[str] | None = None,
+) -> list[Article]:
     query = _query_from_claim(claim_text)
-    # Prioriza oficiais na query também (sites conforme tema do claim)
+    # Prioriza oficiais só dos temas selecionados pelo usuário
     urls = search_news_urls(
         query, max_results=settings.crossref_max_peers, refine_query=True
     )
-    official_q = official_search_query(db, claim_text, query)
-    official_urls = search_news_urls(
-        official_q,
-        max_results=max(2, settings.crossref_max_peers // 2),
-        refine_query=False,
+    official_q = official_search_query(db, claim_text, query, themes=themes)
+    official_urls = (
+        search_news_urls(
+            official_q,
+            max_results=max(2, settings.crossref_max_peers // 2),
+            refine_query=False,
+        )
+        if official_q and official_q != query
+        else []
     )
     seen = {normalize_url(root.url)}
     peers: list[Article] = []
@@ -366,12 +375,15 @@ def run_cross_reference_for_article(
     peer_pool: list[Article] | None = None,
     allow_llm_stance: bool = False,
     force: bool = False,
+    themes: list[str] | None = None,
 ) -> list[CrossReferenceOut]:
     if not settings.crossref_enabled or not assessments:
         return []
 
     assessments = _unique_assessments(assessments)
     outs: list[CrossReferenceOut] = []
+    # Lista explícita (mesmo vazia): só oficiais dos temas marcados
+    analysis_themes = list(themes) if themes is not None else []
 
     for assessment in assessments[: settings.claim_max_per_article]:
         claim_id = assessment.claim.id
@@ -409,7 +421,11 @@ def run_cross_reference_for_article(
         else:
             peers.extend(_local_peers(db, claim.canonical_text, root, pool=None))
             if len(peers) < settings.crossref_min_local_before_web:
-                peers.extend(_fetch_web_peers(db, claim.canonical_text, root))
+                peers.extend(
+                    _fetch_web_peers(
+                        db, claim.canonical_text, root, themes=analysis_themes
+                    )
+                )
 
         uniq: dict[int, Article] = {}
         for p in peers:

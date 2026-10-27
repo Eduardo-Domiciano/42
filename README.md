@@ -1,6 +1,6 @@
 # ④②
 
-App híbrido (Python + Angular) para coletar notícias brasileiras, guardar fonte/autor/conteúdo/data e devolver uma análise preliminar. Usa o catálogo de fontes do Frank Investigator (copiado) e mantém os projetos originais só como referência local em `_reference/` (ignorada pelo Git).
+App híbrido (Python + Angular) para coletar notícias brasileiras, guardar fonte/autor/conteúdo/data e devolver uma análise preliminar.
 
 ![42](./img/42-exemplo.png)
 
@@ -40,6 +40,7 @@ uvicorn app.main:app --reload --port 8000
 API: `http://127.0.0.1:8000/docs`
 
 - `POST /api/ingest/url` — `{ "url": "https://..." }`
+- `POST /api/ingest/text` — `{ "text": "...", "title": "opcional" }`
 - `POST /api/search/topic` — `{ "topic": "...", "date_from": "2026-10-01", "date_to": "2026-10-20" }`
 
 **LLM:** desligada por padrão. Claims, filtro de tema e resumos usam heurísticas no código.

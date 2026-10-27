@@ -20,16 +20,23 @@ from app.services.claim_pipeline import ensure_claim_assessments
 from app.services.cross_reference import run_cross_reference_for_article
 from app.services.llm_client import llm_configured
 from app.services.narrative_summary import build_article_narrative
+from app.services.themes_catalog import normalize_themes
 
 
 def _narrative_looks_technical(text: str) -> bool:
+    """True se o resumo em cache ainda não é o estilo humanizado atual."""
     t = (text or "").lower()
+    if "em termos simples" not in t:
+        return True
     markers = (
         "claims (afirmativas)",
         "cross-reference (cruzamento",
         "calibration (calibração",
         "vereditos isolados (f3)",
         "ownership (grupo dono)",
+        "afirmativas que a análise destacou",
+        "ao confrontar",
+        "pela análise automática",
     )
     return any(m in t for m in markers)
 
@@ -44,9 +51,11 @@ def build_article_out(
     run_crossref: bool = True,
     peer_pool: list[Article] | None = None,
     force: bool = False,
+    themes: list[str] | None = None,
 ) -> ArticleOut:
     # Claims LLM e resumo LLM podem ser particionados (tema: só o 1º artigo)
     use_narrative_llm = allow_llm if allow_narrative_llm is None else allow_narrative_llm
+    analysis_themes = normalize_themes(themes)
 
     claims = []
     if run_claims:
@@ -64,6 +73,7 @@ def build_article_out(
             peer_pool=peer_pool,
             allow_llm_stance=False,
             force=force,
+            themes=analysis_themes,
         )
 
     body = article.body or ""
@@ -104,7 +114,7 @@ def build_article_out(
         cached = False
 
     bcb_comparisons = run_bcb_comparison(
-        db, article, claims, force=force
+        db, article, claims, force=force, themes=analysis_themes
     )
 
     return ArticleOut(
@@ -124,4 +134,5 @@ def build_article_out(
         analysis_cached=cached,
         outbound_links=outbound,
         bcb_comparisons=bcb_comparisons,
+        analysis_themes=analysis_themes,
     )

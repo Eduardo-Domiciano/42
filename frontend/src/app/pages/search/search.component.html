@@ -9,7 +9,26 @@
   />
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-inner">
-    <p class="brand-mark" id="brand-title">④②</p>
+    <div class="brand-row">
+      <p class="brand-mark" id="brand-title">④②</p>
+      <a
+        class="github-link"
+        href="https://github.com/Eduardo-Domiciano/42"
+        target="_blank"
+        rel="noopener noreferrer"
+        title="Código no GitHub"
+      >
+        <img
+          class="github-icon"
+          src="icone-github.png"
+          alt="GitHub"
+          width="36"
+          height="36"
+          decoding="async"
+        />
+        <span class="sr-only">Abrir repositório no GitHub</span>
+      </a>
+    </div>
     <div class="hero-rule" aria-hidden="true"></div>
     <h1 class="hero-title">
       Brasil: análise técnica de notícias, artigos e opiniões
@@ -26,7 +45,11 @@
   </div>
 </header>
 
-<section class="panel" aria-label="Formulário de busca">
+<section
+  class="panel"
+  [class.themes-open]="themesOpen"
+  aria-label="Formulário de busca"
+>
   <div class="tabs" role="tablist">
     <button
       type="button"
@@ -35,6 +58,14 @@
       (click)="setMode('url')"
     >
       URL (endereço do artigo)
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [class.active]="mode === 'text'"
+      (click)="setMode('text')"
+    >
+      Texto colado
     </button>
     <button
       type="button"
@@ -120,6 +151,38 @@
         no máximo 1 mês entre as duas datas. Se o mês estiver preenchido, ele
         prevalece sobre De/Até.
       </p>
+    } @else if (mode === 'text') {
+      <div class="text-meta-row">
+        <label>
+          Título (opcional)
+          <input
+            type="text"
+            name="pastedTitle"
+            [(ngModel)]="pastedTitle"
+            placeholder="Ex.: Título da matéria ou trecho"
+            autocomplete="off"
+          />
+        </label>
+        <label>
+          Data em que foi escrita
+          <input type="date" name="pastedDate" [(ngModel)]="pastedDate" />
+        </label>
+      </div>
+      <label>
+        Texto para analisar
+        <textarea
+          name="pastedText"
+          rows="10"
+          [(ngModel)]="pastedText"
+          placeholder="Cole aqui o corpo da notícia, artigo ou trecho (mín. ~80 caracteres)."
+        ></textarea>
+      </label>
+      <p class="hint">
+        O texto entra no mesmo pipeline da URL (afirmativas, cruzamento, resumo).
+        A data contextualiza a matéria (ex.: com o tema Economia, comparação BCB
+        no ano certo). Sem link da fonte, o perfil do veículo pode ficar em
+        branco.
+      </p>
     } @else {
       <label>
         URL (endereço da notícia)
@@ -133,8 +196,74 @@
       </label>
     }
 
+    <div class="themes-field" [class.open]="themesOpen">
+      <span class="themes-label" id="themes-label">Temas oficiais</span>
+      <button
+        type="button"
+        class="themes-trigger"
+        (click)="toggleThemesPanel()"
+        [attr.aria-expanded]="themesOpen"
+        aria-controls="themes-panel"
+        aria-labelledby="themes-label"
+      >
+        <span class="themes-trigger-text">{{ themesSummary() }}</span>
+        <span class="themes-trigger-caret" aria-hidden="true">▾</span>
+      </button>
+      @if (themesOpen) {
+        <div
+          class="themes-panel"
+          id="themes-panel"
+          role="group"
+          aria-labelledby="themes-label"
+        >
+          <p class="themes-panel-intro">
+            Marque um ou mais temas. Com Economia, a análise inclui comparação
+            com séries do Banco Central e prioriza fontes oficiais do tema.
+          </p>
+          <ul class="themes-list">
+            @for (theme of availableThemes; track theme.slug) {
+              <li>
+                <label class="theme-option">
+                  <input
+                    type="checkbox"
+                    [name]="'theme-' + theme.slug"
+                    [checked]="isThemeSelected(theme.slug)"
+                    (change)="
+                      toggleTheme(theme.slug, $any($event.target).checked)
+                    "
+                  />
+                  <span class="theme-option-body">
+                    <span class="theme-option-label">{{ theme.label }}</span>
+                    <span class="theme-option-desc">{{
+                      theme.description
+                    }}</span>
+                  </span>
+                </label>
+              </li>
+            }
+          </ul>
+          <button
+            type="button"
+            class="themes-done"
+            (click)="closeThemesPanel()"
+          >
+            Fechar
+          </button>
+        </div>
+      }
+      <p class="hint">
+        Opcional e expansível — hoje só Economia; outros temas entram depois.
+      </p>
+    </div>
+
     <button type="submit" class="primary" [disabled]="loading">
-      {{ loading ? 'Buscando…' : 'Buscar e analisar' }}
+      {{
+        loading
+          ? 'Analisando…'
+          : mode === 'text'
+            ? 'Analisar texto'
+            : 'Buscar e analisar'
+      }}
     </button>
   </form>
 
@@ -370,6 +499,67 @@
         </section>
       }
 
+      @if (articleResult.bcb_comparisons?.length) {
+        <section class="bcb-compare">
+          <h3>Comparação com o Banco Central</h3>
+          <p class="claims-scale-note">
+            Tema Economia selecionado: séries oficiais do ano (SGS) em cache;
+            números das afirmativas confrontados com Selic, IPCA e dólar. Linhas
+            “[BCB]” mostram o valor oficial de referência.
+          </p>
+          <div class="table-wrap">
+            <table class="scores-table compact">
+              <thead>
+                <tr>
+                  <th scope="col">Indicador</th>
+                  <th scope="col">Ano</th>
+                  <th scope="col">Citado</th>
+                  <th scope="col">Oficial BCB</th>
+                  <th scope="col">Data BCB</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (b of articleResult.bcb_comparisons; track $index) {
+                  <tr>
+                    <td>
+                      {{ b.indicator_name }}
+                      @if (b.series_code) {
+                        <span class="muted"> ({{ b.series_code }})</span>
+                      }
+                    </td>
+                    <td class="num">{{ b.year }}</td>
+                    <td class="num">
+                      {{
+                        b.claimed_value !== null && b.claimed_value !== undefined
+                          ? (b.claimed_value | number: '1.2-2')
+                          : '—'
+                      }}
+                    </td>
+                    <td class="num">
+                      {{
+                        b.official_value !== null &&
+                        b.official_value !== undefined
+                          ? (b.official_value | number: '1.2-2')
+                          : '—'
+                      }}
+                    </td>
+                    <td>{{ b.official_date || '—' }}</td>
+                    <td>
+                      <span
+                        class="badge"
+                        [class.warn]="b.status === 'mismatch'"
+                        >{{ bcbStatusLabel(b.status) }}</span
+                      >
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+      }
+
       <section class="tech-data">
         <h3>Dados Técnicos</h3>
         @if (articleResult.source) {
@@ -464,70 +654,6 @@
                 </tbody>
               </table>
             </div>
-          </div>
-        }
-        @if (articleResult.bcb_comparisons?.length) {
-          <div class="bcb-compare">
-            <h4>Comparação com o Banco Central</h4>
-            <p class="claims-scale-note">
-              Tema economia: séries SGS do ano em cache local; números das
-              afirmativas confrontados com Selic, IPCA e dólar.
-            </p>
-            <div class="table-wrap">
-              <table class="scores-table compact">
-                <thead>
-                  <tr>
-                    <th scope="col">Indicador</th>
-                    <th scope="col">Ano</th>
-                    <th scope="col">Citado</th>
-                    <th scope="col">Oficial BCB</th>
-                    <th scope="col">Data BCB</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (b of articleResult.bcb_comparisons; track $index) {
-                    <tr>
-                      <td>
-                        {{ b.indicator_name }}
-                        @if (b.series_code) {
-                          <span class="muted"> ({{ b.series_code }})</span>
-                        }
-                      </td>
-                      <td class="num">{{ b.year }}</td>
-                      <td class="num">
-                        {{
-                          b.claimed_value !== null && b.claimed_value !== undefined
-                            ? (b.claimed_value | number: '1.2-2')
-                            : '—'
-                        }}
-                      </td>
-                      <td class="num">
-                        {{
-                          b.official_value !== null &&
-                          b.official_value !== undefined
-                            ? (b.official_value | number: '1.2-2')
-                            : '—'
-                        }}
-                      </td>
-                      <td>{{ b.official_date || '—' }}</td>
-                      <td>
-                        <span
-                          class="badge"
-                          [class.warn]="b.status === 'mismatch'"
-                          >{{ bcbStatusLabel(b.status) }}</span
-                        >
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-            @for (b of articleResult.bcb_comparisons; track $index) {
-              @if (b.note) {
-                <p class="bcb-note">{{ b.note }}</p>
-              }
-            }
           </div>
         }
         @if (articleResult.cross_references.length) {
@@ -850,8 +976,8 @@
                     <div class="bcb-compare">
                       <h4>Comparação com o Banco Central</h4>
                       <p class="claims-scale-note">
-                        Tema economia: séries SGS anuais em cache; comparação
-                        Selic / IPCA / dólar.
+                        Tema Economia selecionado: séries SGS anuais em cache;
+                        comparação Selic / IPCA / dólar.
                       </p>
                       <div class="table-wrap">
                         <table class="scores-table compact">
