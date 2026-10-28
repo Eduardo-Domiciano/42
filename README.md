@@ -29,15 +29,16 @@ Parar: `docker compose down`
 
 ## CI / CD
 
-Scripts em `test/` são a fonte única (Actions só os chama). Ver `docs/ci-cd.md`.
+O CI no self-hosted **exige configurar o host** (`.env` do runner + Docker Desktop).
+Passo a passo oficial adaptado: [`docs/ci-cd.md`](docs/ci-cd.md).
 
 ```bash
-bash ./test/setup-runner.sh   # uma vez no host do runner
-./test/test_ci.sh             # igual ao GitHub Actions
-./test/run.sh --no-deploy     # CI + CD sem recriar containers
-```
+# 1) uma vez na máquina do runner (Docker Desktop aberto)
+bash ./test/setup-runner.sh /caminho/para/actions-runner/42
 
-Requisito: **Docker Desktop ligado**. Não use `sudo docker`.
+# 2) validar igual ao Actions
+./test/test_ci.sh
+```
 
 ## Backend (local, sem Docker)
 
