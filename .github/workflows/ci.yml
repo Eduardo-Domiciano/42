@@ -5,56 +5,31 @@ on:
   push:
     branches: [main]
 
+# Runner systemd costuma ter PATH mínimo.
+env:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
 jobs:
-  backend:
-    name: Backend
-    runs-on: [self-hosted, 42]
-    defaults:
-      run:
-        working-directory: backend
+  build:
+    name: Build & check
+    runs-on: [self-hosted, "42"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # setup-python baixa binários x86-64-v3; a CPU deste runner não suporta.
-      - name: Create venv
-        run: python3 -m venv .venv
-
-      - name: Install dependencies
-        run: .venv/bin/pip install -r requirements.txt
-
-      - name: Compile check
-        run: .venv/bin/python -m compileall -q app
-
-      - name: Import app
-        run: .venv/bin/python -c "from app.main import app; print(app.title)"
-
-  frontend:
-    name: Frontend
-    runs-on: [self-hosted, 42]
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      # Usa Node do sistema (evita binários pré-compilados do setup-node).
-      - name: Show Node
-        run: node --version && npm --version
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Production build
-        run: npm run build -- --configuration=production
-
-  docker:
-    name: Docker build
-    runs-on: [self-hosted, 42]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Docker Desktop socket
+        run: |
+          set -euo pipefail
+          if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
+            echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
+          fi
+          docker version
 
       - name: Build images
         run: docker compose build
+
+      # O Dockerfile do frontend já roda `ng build --configuration=production`.
+      - name: Backend import check
+        run: |
+          docker run --rm --entrypoint python 42-backend:latest \
+            -c "from app.main import app; print(app.title)"

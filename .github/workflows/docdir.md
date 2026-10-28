@@ -6,7 +6,7 @@ Pipelines do GitHub Actions para o ④②.
 
 | Arquivo | O que faz |
 | --- | --- |
-| `ci.yml` | CI: valida backend, build do Angular e `docker compose build`. |
+| `ci.yml` | CI: `docker compose build` + import do backend na imagem (sem Node/Python no host). |
 | `cd.yml` | CD: após CI ok no `main`, publica imagens no GHCR e sobe o Compose no runner. |
 | `docdir.md` | Este arquivo. |
 

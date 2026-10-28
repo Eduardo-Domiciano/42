@@ -12,6 +12,7 @@ permissions:
   packages: write
 
 env:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   REGISTRY: ghcr.io
 
 jobs:
@@ -21,12 +22,20 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
-    runs-on: [self-hosted, 42]
+    runs-on: [self-hosted, "42"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Docker Desktop socket
+        run: |
+          set -euo pipefail
+          if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
+            echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
+          fi
+          docker version
 
       - name: Image names
         id: images
@@ -65,14 +74,38 @@ jobs:
           docker push "${PREFIX}-frontend:latest"
           docker push "${PREFIX}-frontend:${SHORT_SHA}"
 
+      - name: Free host port
+        env:
+          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
+        run: |
+          set -euo pipefail
+          docker compose down --remove-orphans || true
+          ids="$(docker ps -aq --filter "publish=${HOST_PORT}" || true)"
+          if [ -n "${ids}" ]; then
+            # shellcheck disable=SC2086
+            docker rm -f ${ids}
+          fi
+          if ss -tln | grep -q ":${HOST_PORT} "; then
+            sudo -n fuser -k "${HOST_PORT}/tcp" || true
+            sleep 1
+          fi
+          if ss -tln | grep -q ":${HOST_PORT} "; then
+            echo "Porta ${HOST_PORT} ainda em uso. No runner, rode: sudo fuser -k ${HOST_PORT}/tcp"
+            exit 1
+          fi
+
       - name: Deploy with Compose
-        run: docker compose up -d --remove-orphans
+        env:
+          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
+        run: docker compose up -d --remove-orphans --force-recreate
 
       - name: Health check
+        env:
+          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
         run: |
           set -euo pipefail
           for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:8080/api/health" | grep -q '"status"'; then
+            if curl -fsS "http://127.0.0.1:${HOST_PORT}/api/health" | grep -q '"status"'; then
               echo "App healthy"
               exit 0
             fi

@@ -29,8 +29,15 @@ Parar: `docker compose down`
 
 ## CI / CD
 
-- **CI** (`.github/workflows/ci.yml`): backend (`compileall` + import), build Angular e `docker compose build` no runner `[self-hosted, 42]`.
+- **CI** (`.github/workflows/ci.yml`): `docker compose build` (valida Angular no Dockerfile) + import do backend na imagem, no runner `[self-hosted, 42]`.
 - **CD** (`.github/workflows/cd.yml`): após CI ok no `main`, publica `42-backend` / `42-frontend` no GHCR e sobe o Compose no runner.
+- O runner precisa do **Docker Desktop ligado** (socket em `~/.docker/desktop/docker.sock`).
+- Antes do push, valide localmente:
+
+```bash
+./test/run.sh              # CI + CD (deploy + health)
+./test/run.sh --no-deploy  # só build/tag, sem recriar containers
+```
 
 ## Backend (local, sem Docker)
 

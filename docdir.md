@@ -22,6 +22,7 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | `google_gemma-4-e4b_current/` | Referência de modelo (não usada no runtime). |
 | `_reference/` | Cópias locais dos projetos originais (fora do Git). |
 | `.github/` | Workflows de CI e CD (GitHub Actions). |
+| `test/` | Validação local de CI/CD antes do push. |
 
 ## Observacoes
 
