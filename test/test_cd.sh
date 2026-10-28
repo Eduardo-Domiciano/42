@@ -23,6 +23,28 @@ done
 
 echo "== CD =="
 
+# DOMAIN pode vir do GitHub (vars/secrets) OU de arquivo na VPS.
+load_cd_env() {
+  local f
+  for f in \
+    "${HOME}/42.cd.env" \
+    "${HOME}/actions-runner/42.cd.env" \
+    "/etc/42/cd.env"
+  do
+    if [[ -f "$f" ]]; then
+      info "carregando ${f}"
+      set -a
+      # shellcheck disable=SC1090
+      source "$f"
+      set +a
+      return 0
+    fi
+  done
+  return 1
+}
+
+load_cd_env || true
+
 setup_docker
 
 OWNER="$(
@@ -58,10 +80,16 @@ fi
 
 if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   if [[ -z "${DOMAIN:-}" ]]; then
-    fail "DOMAIN vazio.
-  No GitHub: Settings → Secrets and variables → Actions → Variables
-  Crie: DOMAIN=app.seudominio.com  (sem https://)
-  Opcional: CORS_ORIGINS=https://app.seudominio.com"
+    fail "DOMAIN vazio. Faça UMA destas opções:
+
+  A) Na VPS (mais simples):
+     echo 'DOMAIN=seu.dominio.com' > ~/42.cd.env
+     echo 'CORS_ORIGINS=https://seu.dominio.com' >> ~/42.cd.env
+
+  B) No GitHub:
+     Settings → Secrets and variables → Actions → Variables
+     DOMAIN = seu.dominio.com  (aba Variables, NÃO Secrets)
+     (sem https://)"
   fi
   export DOMAIN
   export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"

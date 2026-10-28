@@ -1,7 +1,6 @@
 name: CD
 
 # Deploy na VPS (runner self-hosted label 42).
-# O .env do runner NÃO pode apontar para Docker Desktop.
 on:
   workflow_run:
     workflows: [CI]
@@ -21,7 +20,6 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
     runs-on: [self-hosted, "42"]
-    # Sobrescreve DOCKER_HOST vindo do .env do runner (Desktop).
     env:
       DOCKER_HOST: unix:///var/run/docker.sock
       DOCKER_CONTEXT: default
@@ -34,27 +32,48 @@ jobs:
       - name: Docker Engine check
         run: |
           set -euo pipefail
-          echo "DOCKER_HOST=${DOCKER_HOST}"
-          docker --host unix:///var/run/docker.sock info
+          docker --host unix:///var/run/docker.sock info >/dev/null
           docker --host unix:///var/run/docker.sock compose version
 
-      - name: Check DOMAIN
+      # 1) arquivo na VPS  2) Variables/Secrets do GitHub
+      - name: Resolve DOMAIN
         env:
-          DOMAIN: ${{ vars.DOMAIN }}
+          GH_DOMAIN: ${{ vars.DOMAIN || secrets.DOMAIN }}
+          GH_CORS: ${{ vars.CORS_ORIGINS || secrets.CORS_ORIGINS }}
         run: |
           set -euo pipefail
+          DOMAIN="${GH_DOMAIN:-}"
+          CORS_ORIGINS="${GH_CORS:-}"
+
+          for f in "${HOME}/42.cd.env" "${HOME}/actions-runner/42.cd.env" "/etc/42/cd.env"; do
+            if [ -f "$f" ]; then
+              echo "Lendo $f"
+              # shellcheck disable=SC1090
+              set -a && . "$f" && set +a
+            fi
+          done
+
+          # GitHub tem prioridade se estiver preenchido
+          if [ -n "${GH_DOMAIN:-}" ]; then
+            DOMAIN="$GH_DOMAIN"
+          fi
+          if [ -n "${GH_CORS:-}" ]; then
+            CORS_ORIGINS="$GH_CORS"
+          fi
+
           if [ -z "${DOMAIN:-}" ]; then
-            echo "::error::Variable DOMAIN vazia."
-            echo "No GitHub: Settings → Secrets and variables → Actions → Variables"
-            echo "Crie DOMAIN=seu.dominio.com (sem https://)"
-            echo "Opcional: CORS_ORIGINS=https://seu.dominio.com"
+            echo "::error::DOMAIN vazio."
+            echo "Na VPS rode:"
+            echo "  printf '%s\\n' 'DOMAIN=seu.dominio.com' 'CORS_ORIGINS=https://seu.dominio.com' > ~/42.cd.env"
+            echo "Ou no GitHub: Settings → Actions → Variables → DOMAIN"
             exit 1
           fi
+
+          {
+            echo "DOMAIN=${DOMAIN}"
+            echo "CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN}}"
+          } >> "$GITHUB_ENV"
           echo "DOMAIN=${DOMAIN}"
 
       - name: Deploy
-        env:
-          DOMAIN: ${{ vars.DOMAIN }}
-          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
-          DOCKER_HOST: unix:///var/run/docker.sock
         run: bash ./test/test_cd.sh
