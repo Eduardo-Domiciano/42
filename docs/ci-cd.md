@@ -61,6 +61,11 @@ docker --host unix:///var/run/docker.sock compose version
 2. Rode o workflow **CD** (ou push no `main` após CI).
 3. App em `http://IP_DA_VPS:8080` (ou `HOST_PORT` que configurou).
 
+## Traefik (borda)
+
+Na VPS: suba `traefik/` (rede `edge`) e depois o app (`DOMAIN` no `.env`).
+O frontend já se conecta à rede do Traefik. Variable no GitHub: `DOMAIN`.
+
 ## O que NÃO é necessário
 
 - Docker Desktop

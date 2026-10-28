@@ -8,7 +8,8 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | --- | --- |
 | `README.md` | Como subir backend, frontend e Docker. |
 | `.gitignore` | Ignora `_reference/`, `.cursor/`, venv, node_modules e bancos locais. |
-| `docker-compose.yml` | Orquestra backend + frontend (Nginx na porta 8080). |
+| `docker-compose.yml` | Backend + frontend; frontend na rede `edge` (Traefik). |
+| `docker-compose.edge.yml` | Legado (vazio); config edge está no compose principal. |
 | `.env.example` | Exemplo de variáveis de ambiente. |
 
 ## Subpastas
@@ -23,6 +24,7 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | `_reference/` | Cópias locais dos projetos originais (fora do Git). |
 | `.github/` | Workflows de CI e CD (GitHub Actions). |
 | `test/` | Validação local de CI/CD antes do push. |
+| `traefik/` | Proxy de borda Traefik (HTTPS na VPS). |
 
 ## Observacoes
 

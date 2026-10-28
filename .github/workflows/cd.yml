@@ -40,7 +40,7 @@ jobs:
 
       - name: Deploy
         env:
-          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
+          DOMAIN: ${{ vars.DOMAIN }}
           CORS_ORIGINS: ${{ vars.CORS_ORIGINS || '' }}
           DOCKER_HOST: unix:///var/run/docker.sock
         run: bash ./test/test_cd.sh

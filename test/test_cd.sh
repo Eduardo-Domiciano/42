@@ -57,25 +57,42 @@ else
 fi
 
 if [[ "${DO_DEPLOY}" -eq 1 ]]; then
-  free_published_port "${HOST_PORT}"
+  if [[ -z "${DOMAIN:-}" ]]; then
+    fail "defina DOMAIN (ex.: app.seudominio.com) — usado nas labels Traefik"
+  fi
+  export DOMAIN
 
   if [[ -n "${CORS_ORIGINS:-}" ]]; then
     export CORS_ORIGINS
     info "CORS_ORIGINS=${CORS_ORIGINS}"
   fi
 
-  info "docker compose up -d (HOST_PORT=${HOST_PORT})"
+  if ! docker_cmd network inspect edge >/dev/null 2>&1; then
+    fail "rede Docker 'edge' não existe. Suba o Traefik antes:
+    cd traefik && docker compose up -d"
+  fi
+
+  info "docker compose up -d (frontend na rede edge → Traefik)"
   docker_cmd compose up -d --remove-orphans --force-recreate
   pass "compose no ar"
 
-  health_url="http://127.0.0.1:${HOST_PORT}/api/health"
-  info "health check em ${health_url}"
-  if ! wait_health "${health_url}" 30; then
+  info "health check via container backend"
+  ok=0
+  for _ in $(seq 1 30); do
+    if docker_cmd exec 42-backend python -c \
+      "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=2).read()" \
+      >/dev/null 2>&1; then
+      ok=1
+      break
+    fi
+    sleep 2
+  done
+  if [[ "${ok}" -ne 1 ]]; then
     docker_cmd compose ps || true
     docker_cmd compose logs --tail=80 || true
     fail "health check falhou"
   fi
-  pass "app healthy"
+  pass "app healthy (DOMAIN=${DOMAIN})"
 else
   info "pulando deploy (--no-deploy)"
 fi

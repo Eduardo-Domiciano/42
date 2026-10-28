@@ -27,3 +27,7 @@ frontend/.sass-cache/
 
 # Config Docker temporária do CD (evita context Desktop)
 .docker-cd-config/
+
+# Traefik / ACME
+traefik/.env
+traefik/letsencrypt/

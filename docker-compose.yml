@@ -9,8 +9,7 @@ services:
     container_name: 42-backend
     environment:
       DATABASE_URL: sqlite:////data/veracidade.db
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:${HOST_PORT:-8080},http://127.0.0.1:${HOST_PORT:-8080},http://localhost:4200,http://127.0.0.1:4200}
-      # LLM desligada (heurísticas). Para reativar no futuro: CLAIM_USE_LLM / NARRATIVE_USE_LLM / TOPIC_RELEVANCE_USE_LLM
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080,http://127.0.0.1:8080,http://localhost:4200,http://127.0.0.1:4200}
       LLM_PROVIDER: ${LLM_PROVIDER:-none}
       CLAIM_USE_LLM: ${CLAIM_USE_LLM:-false}
       TOPIC_RELEVANCE_USE_LLM: ${TOPIC_RELEVANCE_USE_LLM:-false}
@@ -23,7 +22,14 @@ services:
       - veracidade_data:/data
     expose:
       - "8000"
+    networks:
+      - default
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${APP_CPUS:-0.25}"
+          memory: ${APP_MEMORY:-1G}
 
   frontend:
     image: 42-frontend:latest
@@ -31,11 +37,34 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: 42-frontend
-    ports:
-      - "${HOST_PORT:-8080}:80"
+    # Sem publish no host: entrada só pelo Traefik (80/443 na rede edge).
+    expose:
+      - "80"
     depends_on:
       - backend
+    networks:
+      - default
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:?defina DOMAIN no .env}`)
+      - traefik.http.routers.veracidade.entrypoints=websecure
+      - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
+      - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker
+      - traefik.http.services.veracidade.loadbalancer.server.port=80
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "${APP_CPUS:-0.25}"
+          memory: ${APP_MEMORY:-1G}
 
 volumes:
   veracidade_data:
+
+networks:
+  # Criada pelo Traefik (traefik/docker-compose.yml). Suba o Traefik antes do app.
+  edge:
+    external: true
+    name: edge

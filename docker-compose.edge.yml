@@ -1,0 +1,7 @@
+# Obsoleto: a rede `edge` e as labels Traefik estão no docker-compose.yml.
+# Mantido vazio de override para não quebrar scripts antigos.
+#
+# Uso atual:
+#   1) cd traefik && docker compose up -d
+#   2) cd .. && docker compose up -d --build
+services: {}
