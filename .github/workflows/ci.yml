@@ -14,6 +14,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build images
+        env:
+          # Só para o Compose interpolar labels Traefik; CI não faz deploy.
+          DOMAIN: localhost
         run: docker compose build
 
       - name: Backend import check

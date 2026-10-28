@@ -48,7 +48,8 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=edge
-      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:?defina DOMAIN no .env}`)
+      # DOMAIN é obrigatório no deploy (VPS); no CI usa localhost só para interpolar o YAML.
+      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:-localhost}`)
       - traefik.http.routers.veracidade.entrypoints=websecure
       - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
       - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker

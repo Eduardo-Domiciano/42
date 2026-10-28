@@ -9,7 +9,7 @@ echo "== CI =="
 setup_docker
 
 info "docker compose build"
-docker_cmd compose build
+DOMAIN="${DOMAIN:-localhost}" docker_cmd compose build
 pass "imagens buildadas"
 
 image_exists "42-backend:latest" || fail "falta 42-backend:latest"
