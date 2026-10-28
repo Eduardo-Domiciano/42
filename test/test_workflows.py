@@ -65,7 +65,8 @@ class CdWorkflowTest(unittest.TestCase):
             ["self-hosted", "42"],
         )
         self.assertIn("./test/test_cd.sh", all_runs(self.data))
-        self.assertNotIn("desktop/docker.sock", all_runs(self.data))
+        self.assertNotIn("Desktop", all_runs(self.data))
+        self.assertNotIn("desktop/docker.sock", (ROOT / "test" / "common.sh").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":
