@@ -58,9 +58,11 @@ class CiWorkflowTest(unittest.TestCase):
     def test_has_docker_build_and_import_check(self) -> None:
         steps = self.data["jobs"]["build"]["steps"]
         joined = "\n".join(str(s.get("run", s.get("uses", ""))) for s in steps)
-        self.assertIn("docker compose build", joined)
+        self.assertIn('"${DOCKER}" compose build', joined)
         self.assertIn("from app.main import app", joined)
         self.assertIn("DOCKER_HOST", joined)
+        self.assertIn("GITHUB_PATH", joined)
+        self.assertIn("/usr/bin/docker", joined)
 
 
 class CdWorkflowTest(unittest.TestCase):
@@ -83,10 +85,11 @@ class CdWorkflowTest(unittest.TestCase):
     def test_has_tag_push_deploy_health(self) -> None:
         steps = self.data["jobs"]["deploy"]["steps"]
         joined = "\n".join(str(s.get("run", s.get("uses", ""))) for s in steps)
-        self.assertIn("docker tag", joined)
-        self.assertIn("docker push", joined)
-        self.assertIn("docker compose up -d", joined)
+        self.assertIn('"${DOCKER}" tag', joined)
+        self.assertIn('"${DOCKER}" push', joined)
+        self.assertIn('"${DOCKER}" compose up -d', joined)
         self.assertIn("/api/health", joined)
+        self.assertIn("GITHUB_PATH", joined)
 
 
 if __name__ == "__main__":

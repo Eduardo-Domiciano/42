@@ -12,7 +12,6 @@ permissions:
   packages: write
 
 env:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   REGISTRY: ghcr.io
 
 jobs:
@@ -29,13 +28,36 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Docker Desktop socket
+      - name: Resolve Docker
         run: |
           set -euo pipefail
+          export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
+          echo "/usr/bin" >> "$GITHUB_PATH"
+          echo "/bin" >> "$GITHUB_PATH"
+
+          DOCKER_BIN=""
+          for c in /usr/bin/docker /usr/local/bin/docker /bin/docker; do
+            if [ -x "$c" ]; then
+              DOCKER_BIN="$c"
+              break
+            fi
+          done
+          if [ -z "$DOCKER_BIN" ]; then
+            echo "::error::docker não encontrado"
+            ls -la /usr/bin/docker /usr/local/bin/docker /bin/docker 2>&1 || true
+            exit 127
+          fi
+
           if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
             echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
+          elif [ -S /var/run/docker.sock ]; then
+            echo "DOCKER_HOST=unix:///var/run/docker.sock" >> "$GITHUB_ENV"
           fi
-          docker version
+
+          echo "DOCKER=${DOCKER_BIN}" >> "$GITHUB_ENV"
+          echo "HOST_PORT=${HOST_PORT:-8080}" >> "$GITHUB_ENV"
+          "$DOCKER_BIN" version
 
       - name: Image names
         id: images
@@ -58,60 +80,59 @@ jobs:
           set -euo pipefail
           PREFIX="${{ steps.images.outputs.prefix }}"
           SHORT_SHA="${{ steps.images.outputs.sha }}"
-          docker compose build
-          docker tag 42-backend:latest "${PREFIX}-backend:latest"
-          docker tag 42-backend:latest "${PREFIX}-backend:${SHORT_SHA}"
-          docker tag 42-frontend:latest "${PREFIX}-frontend:latest"
-          docker tag 42-frontend:latest "${PREFIX}-frontend:${SHORT_SHA}"
+          "${DOCKER}" compose build
+          "${DOCKER}" tag 42-backend:latest "${PREFIX}-backend:latest"
+          "${DOCKER}" tag 42-backend:latest "${PREFIX}-backend:${SHORT_SHA}"
+          "${DOCKER}" tag 42-frontend:latest "${PREFIX}-frontend:latest"
+          "${DOCKER}" tag 42-frontend:latest "${PREFIX}-frontend:${SHORT_SHA}"
 
       - name: Push images to GHCR
         run: |
           set -euo pipefail
           PREFIX="${{ steps.images.outputs.prefix }}"
           SHORT_SHA="${{ steps.images.outputs.sha }}"
-          docker push "${PREFIX}-backend:latest"
-          docker push "${PREFIX}-backend:${SHORT_SHA}"
-          docker push "${PREFIX}-frontend:latest"
-          docker push "${PREFIX}-frontend:${SHORT_SHA}"
+          "${DOCKER}" push "${PREFIX}-backend:latest"
+          "${DOCKER}" push "${PREFIX}-backend:${SHORT_SHA}"
+          "${DOCKER}" push "${PREFIX}-frontend:latest"
+          "${DOCKER}" push "${PREFIX}-frontend:${SHORT_SHA}"
 
       - name: Free host port
-        env:
-          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
         run: |
           set -euo pipefail
-          docker compose down --remove-orphans || true
-          ids="$(docker ps -aq --filter "publish=${HOST_PORT}" || true)"
+          PORT="${HOST_PORT:-8080}"
+          "${DOCKER}" compose down --remove-orphans || true
+          ids="$("${DOCKER}" ps -aq --filter "publish=${PORT}" || true)"
           if [ -n "${ids}" ]; then
             # shellcheck disable=SC2086
-            docker rm -f ${ids}
+            "${DOCKER}" rm -f ${ids}
           fi
-          if ss -tln | grep -q ":${HOST_PORT} "; then
-            sudo -n fuser -k "${HOST_PORT}/tcp" || true
+          if ss -tln | grep -q ":${PORT} "; then
+            sudo -n fuser -k "${PORT}/tcp" || true
             sleep 1
           fi
-          if ss -tln | grep -q ":${HOST_PORT} "; then
-            echo "Porta ${HOST_PORT} ainda em uso. No runner, rode: sudo fuser -k ${HOST_PORT}/tcp"
+          if ss -tln | grep -q ":${PORT} "; then
+            echo "Porta ${PORT} ainda em uso. No runner: sudo fuser -k ${PORT}/tcp"
             exit 1
           fi
 
       - name: Deploy with Compose
-        env:
-          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
-        run: docker compose up -d --remove-orphans --force-recreate
-
-      - name: Health check
-        env:
-          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
         run: |
           set -euo pipefail
+          export HOST_PORT="${HOST_PORT:-8080}"
+          "${DOCKER}" compose up -d --remove-orphans --force-recreate
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          PORT="${HOST_PORT:-8080}"
           for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:${HOST_PORT}/api/health" | grep -q '"status"'; then
+            if curl -fsS "http://127.0.0.1:${PORT}/api/health" | grep -q '"status"'; then
               echo "App healthy"
               exit 0
             fi
             sleep 2
           done
           echo "Health check failed"
-          docker compose ps
-          docker compose logs --tail=80
+          "${DOCKER}" compose ps
+          "${DOCKER}" compose logs --tail=80
           exit 1
