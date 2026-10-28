@@ -24,3 +24,6 @@ frontend/.sass-cache/
 !.env.example
 .DS_Store
 *.log
+
+# Config Docker temporária do CD (evita context Desktop)
+.docker-cd-config/

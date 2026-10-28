@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Helpers Docker — alvo principal: Docker Engine em Ubuntu (VPS).
+# Helpers Docker — só Docker Engine (Ubuntu VPS). Sem Docker Desktop.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -7,6 +7,9 @@ cd "$ROOT_DIR"
 
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
 export HOST_PORT="${HOST_PORT:-8080}"
+
+# Socket fixo do Engine. Nunca Desktop.
+ENGINE_SOCK="unix:///var/run/docker.sock"
 
 pass() { printf '  PASS  %s\n' "$*"; }
 fail() { printf '  FAIL  %s\n' "$*" >&2; exit 1; }
@@ -23,54 +26,59 @@ _docker_bin() {
   return 1
 }
 
-# Docker Engine em /var/run/docker.sock (Ubuntu VPS).
 setup_docker() {
-  DOCKER="$(_docker_bin)" || fail "binário docker não encontrado.
+  DOCKER="$(_docker_bin)" || fail "docker não instalado.
   Na VPS Ubuntu:
     sudo apt-get update
     sudo apt-get install -y docker.io docker-compose-v2
+    # ou o pacote docker-ce da Docker Inc.
     sudo systemctl enable --now docker"
   export DOCKER
 
-  export DOCKER_HOST="${DOCKER_HOST:-unix:///var/run/docker.sock}"
-  export DOCKER_CONTEXT=default
+  # Limpa herança do runner (.env com Desktop, context desktop-linux, etc.)
+  unset DOCKER_HOST DOCKER_CONTEXT || true
+  export DOCKER_HOST="${ENGINE_SOCK}"
+  # config limpa: ignora ~/.docker/config.json com currentContext=desktop-linux
+  export DOCKER_CONFIG="${ROOT_DIR}/.docker-cd-config"
+  mkdir -p "${DOCKER_CONFIG}"
+  printf '%s\n' '{"auths":{}}' > "${DOCKER_CONFIG}/config.json"
 
   if [[ ! -S /var/run/docker.sock ]]; then
-    fail "socket /var/run/docker.sock ausente — Docker Engine parado ou não instalado.
-  Na VPS:
+    fail "/var/run/docker.sock não existe. Na VPS:
     sudo systemctl enable --now docker
-    sudo systemctl status docker"
+    sudo systemctl status docker --no-pager"
   fi
 
+  info "usando Engine: ${ENGINE_SOCK} (user=$(id -un) groups=$(id -nG))"
+
   local err
-  if ! err="$("${DOCKER}" info 2>&1)"; then
-    info "diagnóstico: user=$(id -un) groups=$(id -nG)"
-    info "diagnóstico: $(ls -la /var/run/docker.sock 2>&1 || true)"
+  if ! err="$(docker_cmd info 2>&1)"; then
+    info "ls sock: $(ls -la /var/run/docker.sock 2>&1 || true)"
+    info "env DOCKER_HOST was: ${DOCKER_HOST:-<empty>}"
     if echo "${err}" | grep -qi 'permission denied'; then
-      fail "sem permissão no Docker Engine (/var/run/docker.sock).
-  Na VPS Ubuntu (usuário do runner = $(id -un)):
-    sudo usermod -aG docker $(id -un)
-    # reinicie o serviço do runner para carregar o grupo:
-    cd /caminho/do/actions-runner && sudo ./svc.sh stop && sudo ./svc.sh start"
+      fail "sem permissão em /var/run/docker.sock.
+  sudo usermod -aG docker $(id -un)
+  # reinicie o runner (senão o grupo não vale):
+  sudo ./svc.sh stop && sudo ./svc.sh start"
     fi
     fail "docker info falhou:
   ${err}"
   fi
 
-  if ! "${DOCKER}" compose version >/dev/null 2>&1; then
-    fail "plugin 'docker compose' ausente.
-  Na VPS: sudo apt-get install -y docker-compose-v2"
+  if ! docker_cmd compose version >/dev/null 2>&1; then
+    fail "falta docker compose. Na VPS: sudo apt-get install -y docker-compose-v2"
   fi
 
-  pass "docker ok (${DOCKER} → ${DOCKER_HOST})"
+  pass "docker ok (${DOCKER} -H ${ENGINE_SOCK})"
 }
 
 require_docker() {
   setup_docker
 }
 
+# Sempre passa --host do Engine (anula .env do runner e context Desktop).
 docker_cmd() {
-  "${DOCKER:?rode setup_docker antes}" "$@"
+  "${DOCKER:?rode setup_docker antes}" --host "${ENGINE_SOCK}" "$@"
 }
 
 image_exists() {
@@ -108,8 +116,7 @@ free_published_port() {
     return 0
   fi
 
-  fail "porta ${port} em uso. Na VPS: sudo fuser -k ${port}/tcp
-  Ou defina HOST_PORT para outra porta."
+  fail "porta ${port} em uso. sudo fuser -k ${port}/tcp  ou  HOST_PORT=outra"
 }
 
 wait_health() {

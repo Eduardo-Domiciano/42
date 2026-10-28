@@ -1,7 +1,7 @@
 name: CD
 
-# Deploy na VPS via self-hosted runner (label 42).
-# O runner DEVE estar instalado e Idle NA VPS — não no PC local.
+# Deploy na VPS (runner self-hosted label 42).
+# O .env do runner NÃO pode apontar para Docker Desktop.
 on:
   workflow_run:
     workflows: [CI]
@@ -21,15 +21,26 @@ jobs:
       (github.event.workflow_run.conclusion == 'success' &&
        github.event.workflow_run.event == 'push')
     runs-on: [self-hosted, "42"]
+    # Sobrescreve DOCKER_HOST vindo do .env do runner (Desktop).
+    env:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_CONTEXT: default
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
+      - name: Docker Engine check
+        run: |
+          set -euo pipefail
+          echo "DOCKER_HOST=${DOCKER_HOST}"
+          docker --host unix:///var/run/docker.sock info
+          docker --host unix:///var/run/docker.sock compose version
+
       - name: Deploy
         env:
-          # Porta pública na VPS (override em Settings → Variables → HOST_PORT)
           HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
           CORS_ORIGINS: ${{ vars.CORS_ORIGINS || '' }}
+          DOCKER_HOST: unix:///var/run/docker.sock
         run: bash ./test/test_cd.sh
