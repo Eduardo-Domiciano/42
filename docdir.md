@@ -21,6 +21,7 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | `img/` | Ícones e imagens de referência (ex.: GitHub). |
 | `google_gemma-4-e4b_current/` | Referência de modelo (não usada no runtime). |
 | `_reference/` | Cópias locais dos projetos originais (fora do Git). |
+| `.github/` | Workflows de CI e CD (GitHub Actions). |
 
 ## Observacoes
 

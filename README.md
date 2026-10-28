@@ -27,6 +27,11 @@ docker compose up --build
 
 Parar: `docker compose down`
 
+## CI / CD
+
+- **CI** (`.github/workflows/ci.yml`): backend (`compileall` + import), build Angular e `docker compose build` no runner `[self-hosted, 42]`.
+- **CD** (`.github/workflows/cd.yml`): após CI ok no `main`, publica `42-backend` / `42-frontend` no GHCR e sobe o Compose no runner.
+
 ## Backend (local, sem Docker)
 
 ```bash

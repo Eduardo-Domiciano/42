@@ -1,0 +1,84 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  deploy:
+    name: Deploy
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: [self-hosted, 42]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Image names
+        id: images
+        run: |
+          set -euo pipefail
+          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "prefix=ghcr.io/${OWNER}/42" >> "$GITHUB_OUTPUT"
+          echo "sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and tag images
+        run: |
+          set -euo pipefail
+          PREFIX="${{ steps.images.outputs.prefix }}"
+          SHORT_SHA="${{ steps.images.outputs.sha }}"
+          docker compose build
+          docker tag 42-backend:latest "${PREFIX}-backend:latest"
+          docker tag 42-backend:latest "${PREFIX}-backend:${SHORT_SHA}"
+          docker tag 42-frontend:latest "${PREFIX}-frontend:latest"
+          docker tag 42-frontend:latest "${PREFIX}-frontend:${SHORT_SHA}"
+
+      - name: Push images to GHCR
+        run: |
+          set -euo pipefail
+          PREFIX="${{ steps.images.outputs.prefix }}"
+          SHORT_SHA="${{ steps.images.outputs.sha }}"
+          docker push "${PREFIX}-backend:latest"
+          docker push "${PREFIX}-backend:${SHORT_SHA}"
+          docker push "${PREFIX}-frontend:latest"
+          docker push "${PREFIX}-frontend:${SHORT_SHA}"
+
+      - name: Deploy with Compose
+        run: docker compose up -d --remove-orphans
+
+      - name: Health check
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 30); do
+            if curl -fsS "http://127.0.0.1:8080/api/health" | grep -q '"status"'; then
+              echo "App healthy"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Health check failed"
+          docker compose ps
+          docker compose logs --tail=80
+          exit 1

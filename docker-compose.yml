@@ -1,5 +1,6 @@
 services:
   backend:
+    image: 42-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -25,6 +26,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: 42-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
