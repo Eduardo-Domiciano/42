@@ -5,21 +5,18 @@ on:
   push:
     branches: [main]
 
-# Requisitos do HOST (não dá para resolver só no YAML):
-# 1) Docker Desktop ligado
-# 2) No diretório do runner, arquivo .env com:
-#      DOCKER_HOST=unix:///home/SEU_USER/.docker/desktop/docker.sock
-#    (sem a palavra export)
-# 3) Reiniciar o serviço: sudo ./svc.sh stop && sudo ./svc.sh start
-# Ver docs/ci-cd.md
-
 jobs:
   build:
     name: Build & check
-    runs-on: [self-hosted, "42"]
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: CI
-        run: bash ./test/test_ci.sh
+      - name: Build images
+        run: docker compose build
+
+      - name: Backend import check
+        run: |
+          docker run --rm --entrypoint python 42-backend:latest \
+            -c "from app.main import app; print(app.title)"

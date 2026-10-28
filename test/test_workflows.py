@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Valida que os workflows delegam aos scripts test/ (fonte única)."""
+"""Valida a estrutura dos workflows CI/CD."""
 
 from __future__ import annotations
 
@@ -26,10 +26,6 @@ def load(path: Path) -> dict:
     return data
 
 
-def runs_on(job: dict) -> list[str]:
-    return [str(x) for x in job["runs-on"]]
-
-
 def all_runs(data: dict) -> str:
     jobs = data.get("jobs") or {}
     chunks: list[str] = []
@@ -39,24 +35,17 @@ def all_runs(data: dict) -> str:
     return "\n".join(chunks)
 
 
-class WorkflowFilesTest(unittest.TestCase):
-    def test_files_and_scripts_exist(self) -> None:
-        self.assertTrue(CI.is_file())
-        self.assertTrue(CD.is_file())
-        self.assertTrue((ROOT / "test" / "test_ci.sh").is_file())
-        self.assertTrue((ROOT / "test" / "test_cd.sh").is_file())
-        self.assertTrue((ROOT / "test" / "common.sh").is_file())
-
-
 class CiWorkflowTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.data = load(CI)
 
-    def test_delegates_to_script(self) -> None:
+    def test_runs_on_github_hosted(self) -> None:
         self.assertEqual(self.data.get("name"), "CI")
-        self.assertEqual(runs_on(self.data["jobs"]["build"]), ["self-hosted", "42"])
-        self.assertIn("./test/test_ci.sh", all_runs(self.data))
+        self.assertEqual(self.data["jobs"]["build"]["runs-on"], "ubuntu-latest")
+        joined = all_runs(self.data)
+        self.assertIn("docker compose build", joined)
+        self.assertIn("from app.main import app", joined)
 
 
 class CdWorkflowTest(unittest.TestCase):
@@ -64,18 +53,14 @@ class CdWorkflowTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.data = load(CD)
 
-    def test_delegates_to_script(self) -> None:
+    def test_manual_only_on_self_hosted(self) -> None:
         self.assertEqual(self.data.get("name"), "CD")
-        self.assertEqual(runs_on(self.data["jobs"]["deploy"]), ["self-hosted", "42"])
-        self.assertIn("./test/test_cd.sh --push", all_runs(self.data))
-
-
-class CommonShContractTest(unittest.TestCase):
-    def test_exports_docker_host_in_shell(self) -> None:
-        text = (ROOT / "test" / "common.sh").read_text(encoding="utf-8")
-        self.assertIn("export DOCKER_HOST=", text)
-        self.assertIn(".docker/desktop/docker.sock", text)
-        self.assertIn("setup_docker", text)
+        on = self.data.get("on", self.data.get(True))
+        self.assertIn("workflow_dispatch", on)
+        self.assertEqual(
+            [str(x) for x in self.data["jobs"]["deploy"]["runs-on"]],
+            ["self-hosted", "42"],
+        )
 
 
 if __name__ == "__main__":

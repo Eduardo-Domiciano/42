@@ -29,16 +29,10 @@ Parar: `docker compose down`
 
 ## CI / CD
 
-O CI no self-hosted **exige configurar o host** (`.env` do runner + Docker Desktop).
-Passo a passo oficial adaptado: [`docs/ci-cd.md`](docs/ci-cd.md).
+- **CI** roda na nuvem GitHub (`ubuntu-latest`) — não usa o seu PC.
+- **CD** é manual (`workflow_dispatch`) no runner `42`, se quiser deploy local.
 
-```bash
-# 1) uma vez na máquina do runner (Docker Desktop aberto)
-bash ./test/setup-runner.sh /caminho/para/actions-runner/42
-
-# 2) validar igual ao Actions
-./test/test_ci.sh
-```
+Detalhes: [`docs/ci-cd.md`](docs/ci-cd.md).
 
 ## Backend (local, sem Docker)
 
