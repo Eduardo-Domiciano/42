@@ -38,9 +38,23 @@ jobs:
           docker --host unix:///var/run/docker.sock info
           docker --host unix:///var/run/docker.sock compose version
 
+      - name: Check DOMAIN
+        env:
+          DOMAIN: ${{ vars.DOMAIN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DOMAIN:-}" ]; then
+            echo "::error::Variable DOMAIN vazia."
+            echo "No GitHub: Settings → Secrets and variables → Actions → Variables"
+            echo "Crie DOMAIN=seu.dominio.com (sem https://)"
+            echo "Opcional: CORS_ORIGINS=https://seu.dominio.com"
+            exit 1
+          fi
+          echo "DOMAIN=${DOMAIN}"
+
       - name: Deploy
         env:
           DOMAIN: ${{ vars.DOMAIN }}
-          CORS_ORIGINS: ${{ vars.CORS_ORIGINS || '' }}
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS }}
           DOCKER_HOST: unix:///var/run/docker.sock
         run: bash ./test/test_cd.sh

@@ -58,14 +58,15 @@ fi
 
 if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   if [[ -z "${DOMAIN:-}" ]]; then
-    fail "defina DOMAIN (ex.: app.seudominio.com) — usado nas labels Traefik"
+    fail "DOMAIN vazio.
+  No GitHub: Settings → Secrets and variables → Actions → Variables
+  Crie: DOMAIN=app.seudominio.com  (sem https://)
+  Opcional: CORS_ORIGINS=https://app.seudominio.com"
   fi
   export DOMAIN
-
-  if [[ -n "${CORS_ORIGINS:-}" ]]; then
-    export CORS_ORIGINS
-    info "CORS_ORIGINS=${CORS_ORIGINS}"
-  fi
+  export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"
+  info "DOMAIN=${DOMAIN}"
+  info "CORS_ORIGINS=${CORS_ORIGINS}"
 
   if ! docker_cmd network inspect edge >/dev/null 2>&1; then
     fail "rede Docker 'edge' não existe. Suba o Traefik antes:
