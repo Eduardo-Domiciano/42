@@ -1,42 +1,35 @@
 name: CD
 
-# Deploy no seu PC só sob demanda (não roda sozinho).
+# Deploy na VPS via self-hosted runner (label 42).
+# O runner DEVE estar instalado e Idle NA VPS — não no PC local.
 on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  packages: write
+concurrency:
+  group: cd-vps
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    name: Deploy
+    name: Deploy (VPS)
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     runs-on: [self-hosted, "42"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Point Docker at Desktop
-        run: |
-          set -euo pipefail
-          echo "/usr/bin" >> "$GITHUB_PATH"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
-          if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
-            echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
-            echo "DOCKER_CONTEXT=default" >> "$GITHUB_ENV"
-          else
-            echo "::error::Docker Desktop socket ausente."
-            exit 1
-          fi
-
-      - name: Log in to GHCR
-        uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: CD
+      - name: Deploy
         env:
+          # Porta pública na VPS (override em Settings → Variables → HOST_PORT)
           HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
-        run: bash ./test/test_cd.sh --push
+          CORS_ORIGINS: ${{ vars.CORS_ORIGINS || '' }}
+        run: bash ./test/test_cd.sh

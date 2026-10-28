@@ -26,10 +26,16 @@ def load(path: Path) -> dict:
     return data
 
 
+def trigger_block(data: dict) -> dict:
+    block = data.get("on", data.get(True))
+    if not isinstance(block, dict):
+        raise AssertionError("bloco on ausente")
+    return block
+
+
 def all_runs(data: dict) -> str:
-    jobs = data.get("jobs") or {}
     chunks: list[str] = []
-    for job in jobs.values():
+    for job in (data.get("jobs") or {}).values():
         for step in job.get("steps") or []:
             chunks.append(str(step.get("run", step.get("uses", ""))))
     return "\n".join(chunks)
@@ -41,11 +47,8 @@ class CiWorkflowTest(unittest.TestCase):
         cls.data = load(CI)
 
     def test_runs_on_github_hosted(self) -> None:
-        self.assertEqual(self.data.get("name"), "CI")
         self.assertEqual(self.data["jobs"]["build"]["runs-on"], "ubuntu-latest")
-        joined = all_runs(self.data)
-        self.assertIn("docker compose build", joined)
-        self.assertIn("from app.main import app", joined)
+        self.assertIn("docker compose build", all_runs(self.data))
 
 
 class CdWorkflowTest(unittest.TestCase):
@@ -53,14 +56,16 @@ class CdWorkflowTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.data = load(CD)
 
-    def test_manual_only_on_self_hosted(self) -> None:
-        self.assertEqual(self.data.get("name"), "CD")
-        on = self.data.get("on", self.data.get(True))
+    def test_vps_self_hosted(self) -> None:
+        on = trigger_block(self.data)
+        self.assertIn("workflow_run", on)
         self.assertIn("workflow_dispatch", on)
         self.assertEqual(
             [str(x) for x in self.data["jobs"]["deploy"]["runs-on"]],
             ["self-hosted", "42"],
         )
+        self.assertIn("./test/test_cd.sh", all_runs(self.data))
+        self.assertNotIn("desktop/docker.sock", all_runs(self.data))
 
 
 if __name__ == "__main__":

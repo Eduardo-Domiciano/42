@@ -52,12 +52,17 @@ if [[ "${DO_PUSH}" -eq 1 ]]; then
   docker_cmd push "${PREFIX}-frontend:${SHA}"
   pass "imagens publicadas no GHCR"
 else
-  info "pulando docker push (use --push para publicar)"
-  pass "dry-run de publish ok"
+  info "sem push GHCR (build local na máquina do runner)"
+  pass "imagens locais ok"
 fi
 
 if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   free_published_port "${HOST_PORT}"
+
+  if [[ -n "${CORS_ORIGINS:-}" ]]; then
+    export CORS_ORIGINS
+    info "CORS_ORIGINS=${CORS_ORIGINS}"
+  fi
 
   info "docker compose up -d (HOST_PORT=${HOST_PORT})"
   docker_cmd compose up -d --remove-orphans --force-recreate

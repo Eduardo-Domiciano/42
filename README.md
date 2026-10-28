@@ -29,8 +29,8 @@ Parar: `docker compose down`
 
 ## CI / CD
 
-- **CI** roda na nuvem GitHub (`ubuntu-latest`) — não usa o seu PC.
-- **CD** é manual (`workflow_dispatch`) no runner `42`, se quiser deploy local.
+- **CI** — nuvem GitHub (`ubuntu-latest`).
+- **CD** — VPS via self-hosted runner label `42` (após CI no `main`).
 
 Detalhes: [`docs/ci-cd.md`](docs/ci-cd.md).
 

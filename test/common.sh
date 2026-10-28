@@ -26,24 +26,21 @@ setup_docker() {
   [[ -n "${DOCKER}" ]] || fail "docker não encontrado em /usr/bin|/usr/local/bin|/bin"
   export DOCKER
 
-  # 1) Docker Desktop (este projeto usa Desktop; usuário NÃO está no grupo docker)
-  if [[ -S "${HOME}/.docker/desktop/docker.sock" ]]; then
-    export DOCKER_HOST="unix://${HOME}/.docker/desktop/docker.sock"
-    # context default + DOCKER_HOST evita cair em /var/run/docker.sock
-    export DOCKER_CONTEXT=default
-    info "DOCKER_HOST=${DOCKER_HOST}"
-  # 2) Engine do sistema, só se o socket for utilizável
-  elif [[ -S /var/run/docker.sock ]]; then
+  # 1) Engine do sistema (VPS / servidor) — preferido para CD
+  if [[ -S /var/run/docker.sock ]] \
+    && DOCKER_HOST="unix:///var/run/docker.sock" "${DOCKER}" info >/dev/null 2>&1; then
     export DOCKER_HOST="unix:///var/run/docker.sock"
     export DOCKER_CONTEXT=default
-    if ! "${DOCKER}" info >/dev/null 2>&1; then
-      fail "sem permissão em /var/run/docker.sock.
-  Opção A (recomendada aqui): abra o Docker Desktop e garanta o socket
-    ${HOME}/.docker/desktop/docker.sock
-  Opção B: sudo usermod -aG docker \"${USER:-$(id -un)}\" && newgrp docker"
-    fi
+    info "DOCKER_HOST=${DOCKER_HOST} (engine sistema)"
+  # 2) Docker Desktop (dev local)
+  elif [[ -S "${HOME}/.docker/desktop/docker.sock" ]]; then
+    export DOCKER_HOST="unix://${HOME}/.docker/desktop/docker.sock"
+    export DOCKER_CONTEXT=default
+    info "DOCKER_HOST=${DOCKER_HOST} (Desktop)"
   else
-    fail "nenhum socket Docker. Abra o Docker Desktop e rode de novo."
+    fail "sem Docker utilizável.
+  Na VPS: instale Docker e: sudo usermod -aG docker \"${USER:-$(id -un)}\"
+  No PC: abra o Docker Desktop."
   fi
 
   "${DOCKER}" version >/dev/null

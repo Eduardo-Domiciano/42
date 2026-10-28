@@ -1,20 +1,27 @@
 # CI/CD — ④②
 
-## CI (nuvem GitHub)
+## CI
 
-- Arquivo: `.github/workflows/ci.yml`
-- Roda em **`ubuntu-latest`** (máquinas da GitHub)
-- **Não usa o seu PC**
-- Faz: `docker compose build` + import do backend
+- `.github/workflows/ci.yml`
+- Roda em **`ubuntu-latest`** (nuvem GitHub)
+- Não usa PC nem VPS
 
-## CD (opcional, no seu runner)
+## CD (VPS + self-hosted runner)
 
-- Arquivo: `.github/workflows/cd.yml`
-- Só sob demanda (`workflow_dispatch`)
-- Usa o runner self-hosted `42` se você disparar manualmente
+- `.github/workflows/cd.yml`
+- Roda no runner **`[self-hosted, "42"]` instalado NA VPS**
+- Dispara após CI ok no `main` (push) ou manualmente (`workflow_dispatch`)
+- Na VPS: `docker compose build` + `up -d` + health em `/api/health`
 
-## Validar local (opcional)
+### Checklist na VPS
 
-```bash
-./test/test_ci.sh
-```
+1. Docker Engine + Compose instalados
+2. Usuário do runner no grupo `docker` (`sudo usermod -aG docker $USER`)
+3. Runner GitHub instalado, label **`42`**, status **Idle**
+4. (Opcional) Variables no repo GitHub:
+   - `HOST_PORT` — padrão `8080` (use `80` se for a porta pública)
+   - `CORS_ORIGINS` — ex. `http://SEU_IP:8080,https://seu.dominio`
+
+### Não fazer
+
+- Não deixar o runner `42` rodando no PC se o CD deve ir para a VPS (um label, uma máquina).
