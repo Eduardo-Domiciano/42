@@ -13,48 +13,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # env.PATH do YAML é sobrescrito pelo runner; use GITHUB_PATH + binário absoluto.
-      - name: Resolve Docker
-        id: docker
-        run: |
-          set -euo pipefail
-          export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
-          echo "/usr/bin" >> "$GITHUB_PATH"
-          echo "/bin" >> "$GITHUB_PATH"
-
-          DOCKER_BIN=""
-          for c in /usr/bin/docker /usr/local/bin/docker /bin/docker; do
-            if [ -x "$c" ]; then
-              DOCKER_BIN="$c"
-              break
-            fi
-          done
-          if [ -z "$DOCKER_BIN" ]; then
-            echo "::error::docker não encontrado"
-            echo "PATH=$PATH"
-            ls -la /usr/bin/docker /usr/local/bin/docker /bin/docker 2>&1 || true
-            exit 127
-          fi
-
-          if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
-            echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
-          elif [ -S /var/run/docker.sock ]; then
-            echo "DOCKER_HOST=unix:///var/run/docker.sock" >> "$GITHUB_ENV"
-          fi
-
-          echo "DOCKER=${DOCKER_BIN}" >> "$GITHUB_ENV"
-          echo "bin=${DOCKER_BIN}" >> "$GITHUB_OUTPUT"
-          "$DOCKER_BIN" version
-
-      - name: Build images
-        run: |
-          set -euo pipefail
-          "${DOCKER}" compose build
-
-      # O Dockerfile do frontend já roda `ng build --configuration=production`.
-      - name: Backend import check
-        run: |
-          set -euo pipefail
-          "${DOCKER}" run --rm --entrypoint python 42-backend:latest \
-            -c "from app.main import app; print(app.title)"
+      # Fonte única: test/test_ci.sh (exporta DOCKER_HOST no mesmo shell).
+      - name: CI
+        run: bash ./test/test_ci.sh

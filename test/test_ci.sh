@@ -1,24 +1,24 @@
 #!/usr/bin/env bash
-# Espelha .github/workflows/ci.yml — rode antes do push.
+# CI real — usado localmente E pelo GitHub Actions (.github/workflows/ci.yml).
 set -euo pipefail
 # shellcheck source=common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
-echo "== test CI =="
+echo "== CI =="
 
-require_docker
+setup_docker
 
 info "docker compose build"
-docker compose build
-pass "imagens 42-backend e 42-frontend buildadas"
+docker_cmd compose build
+pass "imagens buildadas"
 
-image_exists "42-backend:latest" || fail "imagem 42-backend:latest ausente"
-image_exists "42-frontend:latest" || fail "imagem 42-frontend:latest ausente"
-pass "imagens locais encontradas"
+image_exists "42-backend:latest" || fail "falta 42-backend:latest"
+image_exists "42-frontend:latest" || fail "falta 42-frontend:latest"
+pass "imagens locais ok"
 
-info "import check do backend na imagem"
+info "import check do backend"
 TITLE="$(
-  docker run --rm --entrypoint python 42-backend:latest \
+  docker_cmd run --rm --entrypoint python 42-backend:latest \
     -c "from app.main import app; print(app.title)"
 )"
 [[ -n "${TITLE}" ]] || fail "app.title vazio"

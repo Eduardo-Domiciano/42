@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# Espelha .github/workflows/cd.yml sem push ao GHCR (salvo com --push).
-# Uso:
-#   ./test/test_cd.sh           # tag local + deploy + health
+# CD real — usado localmente E pelo GitHub Actions (.github/workflows/cd.yml).
+#   ./test/test_cd.sh
 #   ./test/test_cd.sh --no-deploy
-#   ./test/test_cd.sh --push    # também envia ao GHCR (precisa login)
+#   ./test/test_cd.sh --push
 set -euo pipefail
 # shellcheck source=common.sh
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -22,9 +21,9 @@ for arg in "$@"; do
   esac
 done
 
-echo "== test CD =="
+echo "== CD =="
 
-require_docker
+setup_docker
 
 OWNER="$(
   git remote get-url origin 2>/dev/null \
@@ -38,19 +37,19 @@ SHA="$(git rev-parse --short=7 HEAD 2>/dev/null || echo localdev)"
 PREFIX="ghcr.io/${OWNER}/42"
 
 info "build + tag (${PREFIX}-*:${SHA})"
-docker compose build
-docker tag 42-backend:latest "${PREFIX}-backend:latest"
-docker tag 42-backend:latest "${PREFIX}-backend:${SHA}"
-docker tag 42-frontend:latest "${PREFIX}-frontend:latest"
-docker tag 42-frontend:latest "${PREFIX}-frontend:${SHA}"
+docker_cmd compose build
+docker_cmd tag 42-backend:latest "${PREFIX}-backend:latest"
+docker_cmd tag 42-backend:latest "${PREFIX}-backend:${SHA}"
+docker_cmd tag 42-frontend:latest "${PREFIX}-frontend:latest"
+docker_cmd tag 42-frontend:latest "${PREFIX}-frontend:${SHA}"
 pass "tags locais criadas"
 
 if [[ "${DO_PUSH}" -eq 1 ]]; then
   info "push para GHCR"
-  docker push "${PREFIX}-backend:latest"
-  docker push "${PREFIX}-backend:${SHA}"
-  docker push "${PREFIX}-frontend:latest"
-  docker push "${PREFIX}-frontend:${SHA}"
+  docker_cmd push "${PREFIX}-backend:latest"
+  docker_cmd push "${PREFIX}-backend:${SHA}"
+  docker_cmd push "${PREFIX}-frontend:latest"
+  docker_cmd push "${PREFIX}-frontend:${SHA}"
   pass "imagens publicadas no GHCR"
 else
   info "pulando docker push (use --push para publicar)"
@@ -61,14 +60,14 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   free_published_port "${HOST_PORT}"
 
   info "docker compose up -d (HOST_PORT=${HOST_PORT})"
-  docker compose up -d --remove-orphans --force-recreate
+  docker_cmd compose up -d --remove-orphans --force-recreate
   pass "compose no ar"
 
   health_url="http://127.0.0.1:${HOST_PORT}/api/health"
   info "health check em ${health_url}"
   if ! wait_health "${health_url}" 30; then
-    docker compose ps || true
-    docker compose logs --tail=80 || true
+    docker_cmd compose ps || true
+    docker_cmd compose logs --tail=80 || true
     fail "health check falhou"
   fi
   pass "app healthy"

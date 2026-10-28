@@ -11,9 +11,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  REGISTRY: ghcr.io
-
 jobs:
   deploy:
     name: Deploy
@@ -28,111 +25,28 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
-      - name: Resolve Docker
+      # Precisa vir ANTES do login-action (GITHUB_ENV só vale no próximo step).
+      - name: Point Docker at Desktop
         run: |
           set -euo pipefail
-          export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:${PATH:-}"
-          echo "/usr/local/bin" >> "$GITHUB_PATH"
           echo "/usr/bin" >> "$GITHUB_PATH"
-          echo "/bin" >> "$GITHUB_PATH"
-
-          DOCKER_BIN=""
-          for c in /usr/bin/docker /usr/local/bin/docker /bin/docker; do
-            if [ -x "$c" ]; then
-              DOCKER_BIN="$c"
-              break
-            fi
-          done
-          if [ -z "$DOCKER_BIN" ]; then
-            echo "::error::docker não encontrado"
-            ls -la /usr/bin/docker /usr/local/bin/docker /bin/docker 2>&1 || true
-            exit 127
-          fi
-
+          echo "/usr/local/bin" >> "$GITHUB_PATH"
           if [ -S "${HOME}/.docker/desktop/docker.sock" ]; then
             echo "DOCKER_HOST=unix://${HOME}/.docker/desktop/docker.sock" >> "$GITHUB_ENV"
-          elif [ -S /var/run/docker.sock ]; then
-            echo "DOCKER_HOST=unix:///var/run/docker.sock" >> "$GITHUB_ENV"
+            echo "DOCKER_CONTEXT=default" >> "$GITHUB_ENV"
+          else
+            echo "::error::Docker Desktop socket ausente. Abra o Desktop no host do runner."
+            exit 1
           fi
-
-          echo "DOCKER=${DOCKER_BIN}" >> "$GITHUB_ENV"
-          echo "HOST_PORT=${HOST_PORT:-8080}" >> "$GITHUB_ENV"
-          "$DOCKER_BIN" version
-
-      - name: Image names
-        id: images
-        run: |
-          set -euo pipefail
-          OWNER="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
-          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
-          echo "prefix=ghcr.io/${OWNER}/42" >> "$GITHUB_OUTPUT"
-          echo "sha=${SHA:0:7}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and tag images
-        run: |
-          set -euo pipefail
-          PREFIX="${{ steps.images.outputs.prefix }}"
-          SHORT_SHA="${{ steps.images.outputs.sha }}"
-          "${DOCKER}" compose build
-          "${DOCKER}" tag 42-backend:latest "${PREFIX}-backend:latest"
-          "${DOCKER}" tag 42-backend:latest "${PREFIX}-backend:${SHORT_SHA}"
-          "${DOCKER}" tag 42-frontend:latest "${PREFIX}-frontend:latest"
-          "${DOCKER}" tag 42-frontend:latest "${PREFIX}-frontend:${SHORT_SHA}"
-
-      - name: Push images to GHCR
-        run: |
-          set -euo pipefail
-          PREFIX="${{ steps.images.outputs.prefix }}"
-          SHORT_SHA="${{ steps.images.outputs.sha }}"
-          "${DOCKER}" push "${PREFIX}-backend:latest"
-          "${DOCKER}" push "${PREFIX}-backend:${SHORT_SHA}"
-          "${DOCKER}" push "${PREFIX}-frontend:latest"
-          "${DOCKER}" push "${PREFIX}-frontend:${SHORT_SHA}"
-
-      - name: Free host port
-        run: |
-          set -euo pipefail
-          PORT="${HOST_PORT:-8080}"
-          "${DOCKER}" compose down --remove-orphans || true
-          ids="$("${DOCKER}" ps -aq --filter "publish=${PORT}" || true)"
-          if [ -n "${ids}" ]; then
-            # shellcheck disable=SC2086
-            "${DOCKER}" rm -f ${ids}
-          fi
-          if ss -tln | grep -q ":${PORT} "; then
-            sudo -n fuser -k "${PORT}/tcp" || true
-            sleep 1
-          fi
-          if ss -tln | grep -q ":${PORT} "; then
-            echo "Porta ${PORT} ainda em uso. No runner: sudo fuser -k ${PORT}/tcp"
-            exit 1
-          fi
-
-      - name: Deploy with Compose
-        run: |
-          set -euo pipefail
-          export HOST_PORT="${HOST_PORT:-8080}"
-          "${DOCKER}" compose up -d --remove-orphans --force-recreate
-
-      - name: Health check
-        run: |
-          set -euo pipefail
-          PORT="${HOST_PORT:-8080}"
-          for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:${PORT}/api/health" | grep -q '"status"'; then
-              echo "App healthy"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "Health check failed"
-          "${DOCKER}" compose ps
-          "${DOCKER}" compose logs --tail=80
-          exit 1
+      - name: CD
+        env:
+          HOST_PORT: ${{ vars.HOST_PORT || '8080' }}
+        run: bash ./test/test_cd.sh --push

@@ -11,6 +11,7 @@ Scripts e checagens para validar CI/CD localmente antes do push.
 | `test_cd.sh` | Espelha o CD: tag, health; push GHCR só com `--push`. |
 | `test_workflows.py` | Unitários da estrutura dos YAMLs de CI/CD. |
 | `run.sh` | Roda workflows + CI + CD em sequência. |
+| `setup-runner.sh` | Setup único: grupo docker + `.env` do runner. |
 | `docdir.md` | Este arquivo. |
 
 ## Observacoes
@@ -18,5 +19,6 @@ Scripts e checagens para validar CI/CD localmente antes do push.
 - Na raiz do projeto: `./test/run.sh`
 - Sem recriar containers: `./test/run.sh --no-deploy`
 - Docker Desktop precisa estar ligado.
-- Se a porta 8080 estiver presa por `sudo docker` antigo: `sudo fuser -k 8080/tcp`
-- Porta alternativa: `HOST_PORT=8088 ./test/run.sh`
+- Actions chama `test_ci.sh` / `test_cd.sh` (mesma lógica).
+- Se a porta 8080 estiver presa: `sudo fuser -k 8080/tcp` ou `HOST_PORT=8088`.
+- Detalhes: `docs/ci-cd.md`.
