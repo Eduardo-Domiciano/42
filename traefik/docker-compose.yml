@@ -1,9 +1,11 @@
-# Proxy de borda (Traefik) — sobe NA VPS.
-#   cp .env.example .env && nano .env
-#   docker compose up -d
+# Traefik — incluído pelo docker-compose.edge.yml na raiz do 42.
+# Sobe junto com o app:
+#   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
 #
-# Host: 80 e 443 → Traefik. NÃO use 80:8080 (8080 é porta do app no host, modo antigo).
-# Apps na rede `edge`; Traefik encaminha para a porta do container (labels).
+# Isolado (só o proxy):
+#   docker compose -f traefik/docker-compose.yml --project-directory . up -d
+#
+# Portas: 80:80 e 443:443 (nunca 80:8080).
 
 services:
   traefik:
@@ -16,9 +18,9 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      ACME_EMAIL: ${ACME_EMAIL:?defina ACME_EMAIL}
-      TRAEFIK_DASHBOARD_HOST: ${TRAEFIK_DASHBOARD_HOST:?defina TRAEFIK_DASHBOARD_HOST}
-      TRAEFIK_DASHBOARD_AUTH: ${TRAEFIK_DASHBOARD_AUTH:?defina TRAEFIK_DASHBOARD_AUTH}
+      ACME_EMAIL: ${ACME_EMAIL:-noreply@localhost}
+      TRAEFIK_DASHBOARD_HOST: ${TRAEFIK_DASHBOARD_HOST:-traefik.localhost}
+      TRAEFIK_DASHBOARD_AUTH: ${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$H6usfffV$$.Hu8GHgkdPbTfLDJyttgR/}
     command:
       - --api.dashboard=true
       - --log.level=INFO
@@ -28,10 +30,8 @@ services:
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=edge
       - --entrypoints.web.address=:80
-      # Sem redirect global HTTP→HTTPS: modo IP usa :80.
-      # Com domínio, o overlay edge-tls redireciona só o Host do app.
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
+      - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL:-noreply@localhost}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
       - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     volumes:
@@ -53,12 +53,12 @@ services:
       - traefik.http.middlewares.edge-ratelimit.ratelimit.period=1s
       - traefik.http.middlewares.edge-ratelimit.ratelimit.burst=${TRAEFIK_RATE_BURST:-40}
       - traefik.http.middlewares.edge-inflight.inflightreq.amount=${TRAEFIK_INFLIGHT:-40}
-      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
+      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST:-traefik.localhost}`)
       - traefik.http.routers.dashboard.service=api@internal
       - traefik.http.routers.dashboard.entrypoints=websecure
       - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
       - traefik.http.routers.dashboard.middlewares=dashboard-auth,edge-ratelimit,edge-inflight
-      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}
+      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$H6usfffV$$.Hu8GHgkdPbTfLDJyttgR/}
 
 networks:
   edge:

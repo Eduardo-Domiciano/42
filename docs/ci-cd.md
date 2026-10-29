@@ -59,13 +59,13 @@ docker --host unix:///var/run/docker.sock compose version
 
 1. Commit/push do `test/common.sh` novo (senão o Actions usa o script antigo).
 2. Rode o workflow **CD** (ou push no `main` após CI).
-3. Com Traefik (`edge` no ar): app em `http://IP/` (porta **80**). Sem Traefik: fallback `:8080`.
+3. CD sobe **Traefik + app** (`docker-compose.edge.yml`) → `http://IP/` (:80).
 4. Com `DOMAIN` + `edge-tls`: `https://DOMAIN`.
+5. `FORCE_HOST_PORT=1` no env → fallback `:8080` sem Traefik.
 
-## Traefik (borda)
+## Traefik
 
-Suba `traefik/` com **80:80** / **443:443**. O CD usa a rede `edge` e **não** publica 8080.
-`80:8080` no Traefik está errado (Traefik escuta 80 dentro do container).
+Incluído no deploy (não precisa `cd traefik` separado). Portas **80:80** / **443:443**.
 
 ## O que NÃO é necessário
 

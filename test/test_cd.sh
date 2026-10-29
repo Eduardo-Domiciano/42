@@ -23,9 +23,19 @@ done
 
 echo "== CD =="
 
-# Env: GitHub vars/secrets OU ~/42.cd.env
-# Preferência: Traefik (rede edge) → http://IP:80  |  com DOMAIN → HTTPS
-# Sem Traefik: fallback http://IP:8080
+# Env: GitHub OU ~/42.cd.env OU traefik/.env / .env na raiz
+# Padrão: Traefik + app juntos (edge). FORCE_HOST_PORT=1 → só :8080
+load_env_file() {
+  local f="$1"
+  [[ -f "$f" ]] || return 1
+  info "carregando ${f}"
+  set -a
+  # shellcheck disable=SC1090
+  source "$f"
+  set +a
+  return 0
+}
+
 load_cd_env() {
   local f
   for f in \
@@ -33,14 +43,7 @@ load_cd_env() {
     "${HOME}/actions-runner/42.cd.env" \
     "/etc/42/cd.env"
   do
-    if [[ -f "$f" ]]; then
-      info "carregando ${f}"
-      set -a
-      # shellcheck disable=SC1090
-      source "$f"
-      set +a
-      return 0
-    fi
+    load_env_file "$f" && return 0
   done
   return 1
 }
@@ -52,6 +55,8 @@ detect_pub_ip() {
 }
 
 load_cd_env || true
+load_env_file "${ROOT_DIR}/.env" || true
+load_env_file "${ROOT_DIR}/traefik/.env" || true
 
 setup_docker
 
@@ -66,11 +71,9 @@ OWNER="${OWNER:-local}"
 SHA="$(git rev-parse --short=7 HEAD 2>/dev/null || echo localdev)"
 PREFIX="ghcr.io/${OWNER}/42"
 
-USE_EDGE=0
+USE_EDGE=1
 if [[ "${FORCE_HOST_PORT:-0}" == "1" ]]; then
   USE_EDGE=0
-elif [[ -n "${DOMAIN:-}" ]] || docker_cmd network inspect edge >/dev/null 2>&1; then
-  USE_EDGE=1
 fi
 
 COMPOSE_FILES=( -f docker-compose.yml )
@@ -105,16 +108,10 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   PUB_IP="$(detect_pub_ip || true)"
 
   if [[ "${USE_EDGE}" -eq 1 ]]; then
-    if ! docker_cmd network inspect edge >/dev/null 2>&1; then
-      fail "rede Docker 'edge' não existe. Suba o Traefik:
-    cd traefik && cp -n .env.example .env && nano .env && docker compose up -d
-    Portas do Traefik devem ser 80:80 e 443:443 (não 80:8080)."
-    fi
-
     if [[ -n "${DOMAIN:-}" ]]; then
       export DOMAIN
       export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"
-      info "modo Traefik HTTPS DOMAIN=${DOMAIN}"
+      info "Traefik + app (HTTPS) DOMAIN=${DOMAIN}"
     else
       if [[ -z "${CORS_ORIGINS:-}" ]]; then
         if [[ -n "${PUB_IP:-}" ]]; then
@@ -124,7 +121,7 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
         fi
       fi
       export CORS_ORIGINS
-      info "modo Traefik HTTP (sem domínio) → http://${PUB_IP:-IP}/"
+      info "Traefik + app (HTTP) → http://${PUB_IP:-IP}/"
     fi
     info "CORS_ORIGINS=${CORS_ORIGINS}"
   else
@@ -137,12 +134,12 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
       fi
     fi
     export CORS_ORIGINS
-    info "modo host :${HOST_PORT} (Traefik/edge ausente)"
+    info "modo host :${HOST_PORT} (FORCE_HOST_PORT=1)"
     info "CORS_ORIGINS=${CORS_ORIGINS}"
     free_published_port "${HOST_PORT}"
   fi
 
-  info "docker compose up -d"
+  info "docker compose up -d (Traefik + backend + frontend)"
   docker_cmd compose "${COMPOSE_FILES[@]}" up -d --remove-orphans --force-recreate
   pass "compose no ar"
 
@@ -163,6 +160,8 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
     fail "health check falhou"
   fi
   if [[ "${USE_EDGE}" -eq 1 ]]; then
+    docker_cmd inspect -f '{{.State.Running}}' edge-traefik 2>/dev/null | grep -q true \
+      || fail "edge-traefik não está running"
     if [[ -n "${DOMAIN:-}" ]]; then
       pass "app healthy (https://${DOMAIN})"
     else

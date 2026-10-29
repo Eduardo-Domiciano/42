@@ -9,7 +9,7 @@ App Brasil-first (`veracidade-noticias/`) para coletar notícias, analisar fonte
 | `README.md` | Como subir backend, frontend e Docker. |
 | `.gitignore` | Ignora `_reference/`, `.cursor/`, venv, node_modules e bancos locais. |
 | `docker-compose.yml` | Backend + frontend; publica `HOST_PORT` se sem Traefik. |
-| `docker-compose.edge.yml` | Overlay Traefik HTTP na :80 (rede `edge`, sem :8080). |
+| `docker-compose.edge.yml` | Inclui Traefik + liga o frontend na `edge` (:80, sem :8080). |
 | `docker-compose.edge-tls.yml` | Overlay opcional HTTPS/Let's Encrypt (`DOMAIN`). |
 | `.env.example` | Exemplo de variáveis de ambiente do app. |
 | `42.cd.env.example` | Modelo opcional para `~/42.cd.env` (IP ou domínio). |

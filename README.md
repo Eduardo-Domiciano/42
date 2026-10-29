@@ -36,19 +36,16 @@ Detalhes: [`docs/ci-cd.md`](docs/ci-cd.md).
 
 ## Deploy na VPS
 
-**Entrada pela :80 do Traefik (recomendado, com ou sem domínio):**
+Traefik sobe **junto** com o app (um único compose):
 
 ```bash
-cd traefik && cp -n .env.example .env && nano .env && docker compose up -d
-# ports do Traefik: 80:80 e 443:443  — nunca 80:8080
-cd ..
+# opcional: cp -n traefik/.env.example traefik/.env && nano traefik/.env
 docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
-# abra http://IP_DA_VPS/   (porta 80)
+# http://IP_DA_VPS/  (porta 80)
 ```
 
-**Com domínio + HTTPS:** acrescente `-f docker-compose.edge-tls.yml` e `DOMAIN=...`.
-
-**Sem Traefik (fallback):** `docker compose up -d --build` → `http://IP:8080`.
+**HTTPS:** `-f docker-compose.edge-tls.yml` + `DOMAIN=...`.  
+**Só local:** `docker compose up -d --build` → `:8080` (sem Traefik).
 
 ## Backend (local, sem Docker)
 

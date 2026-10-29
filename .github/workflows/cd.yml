@@ -40,13 +40,25 @@ jobs:
           GH_DOMAIN: ${{ vars.DOMAIN || secrets.DOMAIN }}
           GH_CORS: ${{ vars.CORS_ORIGINS || secrets.CORS_ORIGINS }}
           GH_HOST_PORT: ${{ vars.HOST_PORT || secrets.HOST_PORT }}
+          GH_ACME: ${{ vars.ACME_EMAIL || secrets.ACME_EMAIL }}
+          GH_TRAEFIK_HOST: ${{ vars.TRAEFIK_DASHBOARD_HOST || secrets.TRAEFIK_DASHBOARD_HOST }}
+          GH_TRAEFIK_AUTH: ${{ vars.TRAEFIK_DASHBOARD_AUTH || secrets.TRAEFIK_DASHBOARD_AUTH }}
         run: |
           set -euo pipefail
           DOMAIN="${GH_DOMAIN:-}"
           CORS_ORIGINS="${GH_CORS:-}"
           HOST_PORT="${GH_HOST_PORT:-}"
+          ACME_EMAIL="${GH_ACME:-}"
+          TRAEFIK_DASHBOARD_HOST="${GH_TRAEFIK_HOST:-}"
+          TRAEFIK_DASHBOARD_AUTH="${GH_TRAEFIK_AUTH:-}"
 
-          for f in "${HOME}/42.cd.env" "${HOME}/actions-runner/42.cd.env" "/etc/42/cd.env"; do
+          for f in \
+            "${HOME}/42.cd.env" \
+            "${HOME}/actions-runner/42.cd.env" \
+            "/etc/42/cd.env" \
+            "${GITHUB_WORKSPACE}/.env" \
+            "${GITHUB_WORKSPACE}/traefik/.env"
+          do
             if [ -f "$f" ]; then
               echo "Lendo $f"
               # shellcheck disable=SC1090
@@ -57,25 +69,18 @@ jobs:
           if [ -n "${GH_DOMAIN:-}" ]; then DOMAIN="$GH_DOMAIN"; fi
           if [ -n "${GH_CORS:-}" ]; then CORS_ORIGINS="$GH_CORS"; fi
           if [ -n "${GH_HOST_PORT:-}" ]; then HOST_PORT="$GH_HOST_PORT"; fi
+          if [ -n "${GH_ACME:-}" ]; then ACME_EMAIL="$GH_ACME"; fi
+          if [ -n "${GH_TRAEFIK_HOST:-}" ]; then TRAEFIK_DASHBOARD_HOST="$GH_TRAEFIK_HOST"; fi
+          if [ -n "${GH_TRAEFIK_AUTH:-}" ]; then TRAEFIK_DASHBOARD_AUTH="$GH_TRAEFIK_AUTH"; fi
 
-          if docker --host unix:///var/run/docker.sock network inspect edge >/dev/null 2>&1; then
-            echo "Rede edge presente → Traefik :80 (sem publish 8080)"
-          else
-            echo "Rede edge ausente → fallback :${HOST_PORT:-8080} (suba traefik/ para usar :80)"
-          fi
-
+          echo "Deploy: Traefik + app 42 (edge)"
           {
-            if [ -n "${DOMAIN:-}" ]; then
-              echo "DOMAIN=${DOMAIN}"
-              echo "CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN}}"
-            else
-              if [ -n "${HOST_PORT:-}" ]; then
-                echo "HOST_PORT=${HOST_PORT}"
-              fi
-              if [ -n "${CORS_ORIGINS:-}" ]; then
-                echo "CORS_ORIGINS=${CORS_ORIGINS}"
-              fi
-            fi
+            [ -n "${DOMAIN:-}" ] && echo "DOMAIN=${DOMAIN}"
+            [ -n "${CORS_ORIGINS:-}" ] && echo "CORS_ORIGINS=${CORS_ORIGINS}"
+            [ -n "${HOST_PORT:-}" ] && echo "HOST_PORT=${HOST_PORT}"
+            [ -n "${ACME_EMAIL:-}" ] && echo "ACME_EMAIL=${ACME_EMAIL}"
+            [ -n "${TRAEFIK_DASHBOARD_HOST:-}" ] && echo "TRAEFIK_DASHBOARD_HOST=${TRAEFIK_DASHBOARD_HOST}"
+            [ -n "${TRAEFIK_DASHBOARD_AUTH:-}" ] && echo "TRAEFIK_DASHBOARD_AUTH=${TRAEFIK_DASHBOARD_AUTH}"
           } >> "$GITHUB_ENV"
 
       - name: Deploy
