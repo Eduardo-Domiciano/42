@@ -1,0 +1,21 @@
+# Overlay opcional: HTTPS + Let's Encrypt (precisa de DOMAIN no DNS).
+#   DOMAIN=app.seudominio.com CORS_ORIGINS=https://app.seudominio.com \
+#     docker compose -f docker-compose.yml -f docker-compose.edge.yml \
+#       -f docker-compose.edge-tls.yml up -d
+
+services:
+  frontend:
+    labels:
+      - traefik.http.middlewares.veracidade-https-redirect.redirectscheme.scheme=https
+      - traefik.http.middlewares.veracidade-https-redirect.redirectscheme.permanent=true
+      # HTTP do domínio → HTTPS
+      - traefik.http.routers.veracidade-http-host.rule=Host(`${DOMAIN:?defina DOMAIN}`)
+      - traefik.http.routers.veracidade-http-host.entrypoints=web
+      - traefik.http.routers.veracidade-http-host.priority=100
+      - traefik.http.routers.veracidade-http-host.middlewares=veracidade-https-redirect
+      # HTTPS
+      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:?defina DOMAIN}`)
+      - traefik.http.routers.veracidade.entrypoints=websecure
+      - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
+      - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker
+      - traefik.http.routers.veracidade.service=veracidade

@@ -35,7 +35,6 @@ jobs:
           docker --host unix:///var/run/docker.sock info >/dev/null
           docker --host unix:///var/run/docker.sock compose version
 
-      # Opcional: DOMAIN (Traefik/HTTPS). Sem DOMAIN = modo IP :8080
       - name: Resolve deploy env
         env:
           GH_DOMAIN: ${{ vars.DOMAIN || secrets.DOMAIN }}
@@ -55,29 +54,29 @@ jobs:
             fi
           done
 
-          if [ -n "${GH_DOMAIN:-}" ]; then
-            DOMAIN="$GH_DOMAIN"
-          fi
-          if [ -n "${GH_CORS:-}" ]; then
-            CORS_ORIGINS="$GH_CORS"
-          fi
-          if [ -n "${GH_HOST_PORT:-}" ]; then
-            HOST_PORT="$GH_HOST_PORT"
+          if [ -n "${GH_DOMAIN:-}" ]; then DOMAIN="$GH_DOMAIN"; fi
+          if [ -n "${GH_CORS:-}" ]; then CORS_ORIGINS="$GH_CORS"; fi
+          if [ -n "${GH_HOST_PORT:-}" ]; then HOST_PORT="$GH_HOST_PORT"; fi
+
+          if docker --host unix:///var/run/docker.sock network inspect edge >/dev/null 2>&1; then
+            echo "Rede edge presente → Traefik :80 (sem publish 8080)"
+          else
+            echo "Rede edge ausente → fallback :${HOST_PORT:-8080} (suba traefik/ para usar :80)"
           fi
 
-          if [ -n "${DOMAIN:-}" ]; then
-            echo "Modo: Traefik/HTTPS (DOMAIN=${DOMAIN})"
-            {
+          {
+            if [ -n "${DOMAIN:-}" ]; then
               echo "DOMAIN=${DOMAIN}"
               echo "CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN}}"
-            } >> "$GITHUB_ENV"
-          else
-            echo "Modo: IP/HTTP (sem DOMAIN) — http://IP:${HOST_PORT:-8080}"
-            echo "HOST_PORT=${HOST_PORT:-8080}" >> "$GITHUB_ENV"
-            if [ -n "${CORS_ORIGINS:-}" ]; then
-              echo "CORS_ORIGINS=${CORS_ORIGINS}" >> "$GITHUB_ENV"
+            else
+              if [ -n "${HOST_PORT:-}" ]; then
+                echo "HOST_PORT=${HOST_PORT}"
+              fi
+              if [ -n "${CORS_ORIGINS:-}" ]; then
+                echo "CORS_ORIGINS=${CORS_ORIGINS}"
+              fi
             fi
-          fi
+          } >> "$GITHUB_ENV"
 
       - name: Deploy
         run: bash ./test/test_cd.sh

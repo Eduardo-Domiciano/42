@@ -1,9 +1,11 @@
-# Overlay Traefik (só com domínio DNS).
-#   cd traefik && docker compose up -d
-#   DOMAIN=app.seudominio.com CORS_ORIGINS=https://app.seudominio.com \
-#     docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
+# Overlay Traefik — entrada pela porta 80 do proxy (rede edge).
+# Sem publish no host (nada de :8080).
 #
-# Sem domínio: use só docker-compose.yml → http://IP:8080
+#   cd traefik && docker compose up -d
+#   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
+#
+# Acesso: http://IP/  ou  http://IP:80/
+# Com domínio + HTTPS: acrescente também docker-compose.edge-tls.yml
 
 services:
   frontend:
@@ -13,11 +15,13 @@ services:
     labels:
       - traefik.enable=true
       - traefik.docker.network=edge
-      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:?defina DOMAIN para o modo Traefik}`)
-      - traefik.http.routers.veracidade.entrypoints=websecure
-      - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
-      - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker
       - traefik.http.services.veracidade.loadbalancer.server.port=80
+      # Catch-all HTTP na :80 do Traefik (IP ou qualquer Host)
+      - traefik.http.routers.veracidade-http.rule=PathPrefix(`/`)
+      - traefik.http.routers.veracidade-http.entrypoints=web
+      - traefik.http.routers.veracidade-http.priority=1
+      - traefik.http.routers.veracidade-http.service=veracidade
+      - traefik.http.routers.veracidade-http.middlewares=edge-ratelimit@docker,edge-inflight@docker
 
 networks:
   edge:

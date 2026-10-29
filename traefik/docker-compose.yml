@@ -2,8 +2,8 @@
 #   cp .env.example .env && nano .env
 #   docker compose up -d
 #
-# Limites: 1/4 CPU (0.25) e 1 GiB RAM — contém abuso/brute force.
-# Apps: o frontend do 42 já usa a rede `edge` no docker-compose.yml da raiz.
+# Host: 80 e 443 → Traefik. NÃO use 80:8080 (8080 é porta do app no host, modo antigo).
+# Apps na rede `edge`; Traefik encaminha para a porta do container (labels).
 
 services:
   traefik:
@@ -28,9 +28,8 @@ services:
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=edge
       - --entrypoints.web.address=:80
-      - --entrypoints.web.http.redirections.entrypoint.to=websecure
-      - --entrypoints.web.http.redirections.entrypoint.scheme=https
-      - --entrypoints.web.http.redirections.entrypoint.permanent=true
+      # Sem redirect global HTTP→HTTPS: modo IP usa :80.
+      # Com domínio, o overlay edge-tls redireciona só o Host do app.
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
       - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
@@ -40,7 +39,6 @@ services:
       - letsencrypt:/letsencrypt
     networks:
       - edge
-    # Teto rígido: 1/4 de core + 1 GiB (override via .env se a VPS tiver mais cores)
     deploy:
       resources:
         limits:
@@ -51,13 +49,10 @@ services:
           memory: 64M
     labels:
       - traefik.enable=true
-      # Rate limit global (por IP) — mitiga brute force / flood
       - traefik.http.middlewares.edge-ratelimit.ratelimit.average=${TRAEFIK_RATE_AVERAGE:-20}
       - traefik.http.middlewares.edge-ratelimit.ratelimit.period=1s
       - traefik.http.middlewares.edge-ratelimit.ratelimit.burst=${TRAEFIK_RATE_BURST:-40}
-      # Máximo de requests em voo (contém saturação de conexões)
       - traefik.http.middlewares.edge-inflight.inflightreq.amount=${TRAEFIK_INFLIGHT:-40}
-      # Dashboard
       - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`)
       - traefik.http.routers.dashboard.service=api@internal
       - traefik.http.routers.dashboard.entrypoints=websecure

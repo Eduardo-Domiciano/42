@@ -13,6 +13,7 @@ Proxy de borda (Traefik) na VPS: HTTPS (Let's Encrypt), roteamento Docker e dash
 ## Observacoes
 
 - Preencha `.env` a partir do `.env.example` antes do `up`.
-- O frontend do 42 já está na rede `edge` via `../docker-compose.yml`.
+- Portas: **80:80** e **443:443** (nunca `80:8080`).
+- App entra na `edge` via `../docker-compose.edge.yml` (sem publish :8080).
 - Socket: `/var/run/docker.sock` (Docker Engine na VPS).
-- Limites padrão: **0.25 CPU** (1/4 core) e **1 GiB RAM**; rate limit + in-flight contra brute force.
+- Limites padrão: **0.25 CPU** + **1 GiB**; rate limit + in-flight.
