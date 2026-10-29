@@ -9,7 +9,8 @@
 
 services:
   traefik:
-    image: traefik:v3.3
+    # v3.6.1+ negocia API Docker (v3.3 quebra no Engine 29 → 404 sem routers)
+    image: traefik:v3.6.4
     container_name: edge-traefik
     restart: unless-stopped
     security_opt:
@@ -61,9 +62,11 @@ services:
       - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$H6usfffV$$.Hu8GHgkdPbTfLDJyttgR/}
 
 networks:
+  # Externa: pode já existir de um `up` antigo do Traefik.
+  # O CD/README criam com: docker network create edge
   edge:
     name: edge
-    driver: bridge
+    external: true
 
 volumes:
   letsencrypt:

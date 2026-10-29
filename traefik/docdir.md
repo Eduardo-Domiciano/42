@@ -6,7 +6,7 @@ Proxy de borda (Traefik) na VPS: HTTPS (Let's Encrypt), roteamento Docker e dash
 
 | Arquivo | O que faz |
 | --- | --- |
-| `docker-compose.yml` | Sobe Traefik nas portas 80/443 e cria a rede `edge`. |
+| `docker-compose.yml` | Sobe Traefik (v3.6.4+) nas portas 80/443; usa rede `edge` externa. |
 | `.env.example` | E-mail ACME, host do dashboard e senha htpasswd. |
 | `docdir.md` | Este arquivo. |
 

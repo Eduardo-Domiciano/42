@@ -40,6 +40,7 @@ Traefik sobe **junto** com o app (um único compose):
 
 ```bash
 # opcional: cp -n traefik/.env.example traefik/.env && nano traefik/.env
+docker network create edge 2>/dev/null || true
 docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
 # http://IP_DA_VPS/  (porta 80)
 ```

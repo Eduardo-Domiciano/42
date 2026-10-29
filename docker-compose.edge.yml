@@ -2,8 +2,8 @@
 #
 #   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
 #
-# Acesso: http://IP/  (porta 80 do Traefik; frontend sem publish :8080)
-# HTTPS: acrescente -f docker-compose.edge-tls.yml e DOMAIN=...
+# Acesso: http://IP/  (porta 80). https://IP/ usa cert default do Traefik.
+# HTTPS Let's Encrypt: -f docker-compose.edge-tls.yml + DOMAIN=...
 
 include:
   - path: traefik/docker-compose.yml
@@ -15,13 +15,27 @@ services:
         condition: service_started
     ports: !reset []
     networks:
-      - edge
+      default: {}
+      edge: {}
     labels:
       - traefik.enable=true
       - traefik.docker.network=edge
       - traefik.http.services.veracidade.loadbalancer.server.port=80
+      # Middlewares no próprio serviço (evita edge-ratelimit@docker sumir e zerar o router)
+      - traefik.http.middlewares.veracidade-ratelimit.ratelimit.average=${TRAEFIK_RATE_AVERAGE:-20}
+      - traefik.http.middlewares.veracidade-ratelimit.ratelimit.period=1s
+      - traefik.http.middlewares.veracidade-ratelimit.ratelimit.burst=${TRAEFIK_RATE_BURST:-40}
+      - traefik.http.middlewares.veracidade-inflight.inflightreq.amount=${TRAEFIK_INFLIGHT:-40}
+      # HTTP :80
       - traefik.http.routers.veracidade-http.rule=PathPrefix(`/`)
       - traefik.http.routers.veracidade-http.entrypoints=web
-      - traefik.http.routers.veracidade-http.priority=1
+      - traefik.http.routers.veracidade-http.priority=10
       - traefik.http.routers.veracidade-http.service=veracidade
-      - traefik.http.routers.veracidade-http.middlewares=edge-ratelimit@docker,edge-inflight@docker
+      - traefik.http.routers.veracidade-http.middlewares=veracidade-ratelimit,veracidade-inflight
+      # HTTPS :443 (cert default sem DOMAIN; com edge-tls o Host ganha prioridade)
+      - traefik.http.routers.veracidade-https.rule=PathPrefix(`/`)
+      - traefik.http.routers.veracidade-https.entrypoints=websecure
+      - traefik.http.routers.veracidade-https.priority=10
+      - traefik.http.routers.veracidade-https.service=veracidade
+      - traefik.http.routers.veracidade-https.tls=true
+      - traefik.http.routers.veracidade-https.middlewares=veracidade-ratelimit,veracidade-inflight

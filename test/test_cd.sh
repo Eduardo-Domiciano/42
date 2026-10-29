@@ -108,6 +108,12 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   PUB_IP="$(detect_pub_ip || true)"
 
   if [[ "${USE_EDGE}" -eq 1 ]]; then
+    if ! docker_cmd network inspect edge >/dev/null 2>&1; then
+      info "criando rede Docker edge"
+      docker_cmd network create edge >/dev/null
+    fi
+    pass "rede edge ok"
+
     if [[ -n "${DOMAIN:-}" ]]; then
       export DOMAIN
       export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"
@@ -162,6 +168,22 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
   if [[ "${USE_EDGE}" -eq 1 ]]; then
     docker_cmd inspect -f '{{.State.Running}}' edge-traefik 2>/dev/null | grep -q true \
       || fail "edge-traefik não está running"
+    info "checando Traefik → frontend (http://127.0.0.1/)"
+    edge_ok=0
+    for _ in $(seq 1 20); do
+      body="$(curl -fsS --max-time 3 http://127.0.0.1/ 2>/dev/null || true)"
+      if [[ -n "${body}" ]] && ! echo "${body}" | grep -qi '404 page not found'; then
+        edge_ok=1
+        break
+      fi
+      sleep 2
+    done
+    if [[ "${edge_ok}" -ne 1 ]]; then
+      docker_cmd logs --tail=50 edge-traefik || true
+      docker_cmd inspect -f 'frontend nets={{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{end}}' 42-frontend || true
+      docker_cmd inspect -f '{{range $k,$v := .Config.Labels}}{{println $k $v}}{{end}}' 42-frontend | grep traefik || true
+      fail "Traefik devolveu 404 ou vazio em http://127.0.0.1/ (router/labels/rede edge)"
+    fi
     if [[ -n "${DOMAIN:-}" ]]; then
       pass "app healthy (https://${DOMAIN})"
     else
