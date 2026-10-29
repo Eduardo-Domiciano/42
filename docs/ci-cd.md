@@ -59,12 +59,12 @@ docker --host unix:///var/run/docker.sock compose version
 
 1. Commit/push do `test/common.sh` novo (senão o Actions usa o script antigo).
 2. Rode o workflow **CD** (ou push no `main` após CI).
-3. App em `http://IP_DA_VPS:8080` (ou `HOST_PORT` que configurou).
+3. **Sem domínio:** app em `http://IP_DA_VPS:8080` (padrão do CD).
+4. **Com domínio:** Variable/arquivo `DOMAIN` + Traefik (`docker-compose.edge.yml`) → `https://DOMAIN`.
 
-## Traefik (borda)
+## Traefik (borda, opcional)
 
-Na VPS: suba `traefik/` (rede `edge`) e depois o app (`DOMAIN` no `.env`).
-O frontend já se conecta à rede do Traefik. Variable no GitHub: `DOMAIN`.
+Só se tiver DNS. Sem `DOMAIN`, o CD **não** usa Traefik (porta `HOST_PORT` no host).
 
 ## O que NÃO é necessário
 

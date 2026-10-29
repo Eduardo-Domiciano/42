@@ -23,7 +23,8 @@ done
 
 echo "== CD =="
 
-# DOMAIN pode vir do GitHub (vars/secrets) OU de arquivo na VPS.
+# Env opcional: GitHub vars/secrets OU ~/42.cd.env na VPS.
+# Com DOMAIN → Traefik/HTTPS. Sem DOMAIN → http://IP:HOST_PORT (padrão 8080).
 load_cd_env() {
   local f
   for f in \
@@ -43,6 +44,12 @@ load_cd_env() {
   return 1
 }
 
+detect_pub_ip() {
+  curl -4 -fsS --max-time 3 https://ifconfig.me/ip 2>/dev/null \
+    || curl -4 -fsS --max-time 3 https://api.ipify.org 2>/dev/null \
+    || hostname -I 2>/dev/null | awk '{print $1}'
+}
+
 load_cd_env || true
 
 setup_docker
@@ -58,8 +65,13 @@ OWNER="${OWNER:-local}"
 SHA="$(git rev-parse --short=7 HEAD 2>/dev/null || echo localdev)"
 PREFIX="ghcr.io/${OWNER}/42"
 
+COMPOSE_FILES=( -f docker-compose.yml )
+if [[ -n "${DOMAIN:-}" ]]; then
+  COMPOSE_FILES+=( -f docker-compose.edge.yml )
+fi
+
 info "build + tag (${PREFIX}-*:${SHA})"
-docker_cmd compose build
+docker_cmd compose "${COMPOSE_FILES[@]}" build
 docker_cmd tag 42-backend:latest "${PREFIX}-backend:latest"
 docker_cmd tag 42-backend:latest "${PREFIX}-backend:${SHA}"
 docker_cmd tag 42-frontend:latest "${PREFIX}-frontend:latest"
@@ -79,30 +91,34 @@ else
 fi
 
 if [[ "${DO_DEPLOY}" -eq 1 ]]; then
-  if [[ -z "${DOMAIN:-}" ]]; then
-    fail "DOMAIN vazio. Faça UMA destas opções:
+  if [[ -n "${DOMAIN:-}" ]]; then
+    export DOMAIN
+    export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"
+    info "modo Traefik DOMAIN=${DOMAIN}"
+    info "CORS_ORIGINS=${CORS_ORIGINS}"
 
-  A) Na VPS (mais simples):
-     echo 'DOMAIN=seu.dominio.com' > ~/42.cd.env
-     echo 'CORS_ORIGINS=https://seu.dominio.com' >> ~/42.cd.env
-
-  B) No GitHub:
-     Settings → Secrets and variables → Actions → Variables
-     DOMAIN = seu.dominio.com  (aba Variables, NÃO Secrets)
-     (sem https://)"
-  fi
-  export DOMAIN
-  export CORS_ORIGINS="${CORS_ORIGINS:-https://${DOMAIN}}"
-  info "DOMAIN=${DOMAIN}"
-  info "CORS_ORIGINS=${CORS_ORIGINS}"
-
-  if ! docker_cmd network inspect edge >/dev/null 2>&1; then
-    fail "rede Docker 'edge' não existe. Suba o Traefik antes:
+    if ! docker_cmd network inspect edge >/dev/null 2>&1; then
+      fail "rede Docker 'edge' não existe. Suba o Traefik antes:
     cd traefik && docker compose up -d"
+    fi
+  else
+    export HOST_PORT="${HOST_PORT:-8080}"
+    PUB_IP="$(detect_pub_ip || true)"
+    if [[ -z "${CORS_ORIGINS:-}" ]]; then
+      if [[ -n "${PUB_IP:-}" ]]; then
+        CORS_ORIGINS="http://${PUB_IP}:${HOST_PORT},http://127.0.0.1:${HOST_PORT},http://localhost:${HOST_PORT}"
+      else
+        CORS_ORIGINS="http://127.0.0.1:${HOST_PORT},http://localhost:${HOST_PORT}"
+      fi
+    fi
+    export CORS_ORIGINS
+    info "modo IP (sem domínio) → http://${PUB_IP:-IP}:${HOST_PORT}"
+    info "CORS_ORIGINS=${CORS_ORIGINS}"
+    free_published_port "${HOST_PORT}"
   fi
 
-  info "docker compose up -d (frontend na rede edge → Traefik)"
-  docker_cmd compose up -d --remove-orphans --force-recreate
+  info "docker compose up -d"
+  docker_cmd compose "${COMPOSE_FILES[@]}" up -d --remove-orphans --force-recreate
   pass "compose no ar"
 
   info "health check via container backend"
@@ -117,11 +133,15 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
     sleep 2
   done
   if [[ "${ok}" -ne 1 ]]; then
-    docker_cmd compose ps || true
-    docker_cmd compose logs --tail=80 || true
+    docker_cmd compose "${COMPOSE_FILES[@]}" ps || true
+    docker_cmd compose "${COMPOSE_FILES[@]}" logs --tail=80 || true
     fail "health check falhou"
   fi
-  pass "app healthy (DOMAIN=${DOMAIN})"
+  if [[ -n "${DOMAIN:-}" ]]; then
+    pass "app healthy (https://${DOMAIN})"
+  else
+    pass "app healthy (http://IP:${HOST_PORT})"
+  fi
 else
   info "pulando deploy (--no-deploy)"
 fi

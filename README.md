@@ -34,23 +34,24 @@ Parar: `docker compose down`
 
 Detalhes: [`docs/ci-cd.md`](docs/ci-cd.md).
 
-## Traefik (proxy de borda na VPS)
+## Deploy na VPS
 
-O frontend já entra na rede `edge` do Traefik (labels no `docker-compose.yml`).
+**Sem domínio (HTTP por IP):** só o compose base — Traefik não é necessário.
 
 ```bash
-# 1) Traefik (cria a rede edge + portas 80/443)
-cd traefik
-cp .env.example .env   # ACME_EMAIL, dashboard host/senha
-docker compose up -d
-
-# 2) App (frontend → rede edge)
-cd ..
-# no .env: DOMAIN=app.seudominio.com e CORS_ORIGINS=https://app.seudominio.com
 docker compose up -d --build
+# abra http://IP_DA_VPS:8080  (ou HOST_PORT=… )
 ```
 
-DNS do `DOMAIN` (e do dashboard) → IP da VPS. Entrada pública: **443** (80 redireciona).
+**Com domínio (HTTPS via Traefik):**
+
+```bash
+cd traefik && cp .env.example .env && docker compose up -d && cd ..
+DOMAIN=app.seudominio.com CORS_ORIGINS=https://app.seudominio.com \
+  docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
+```
+
+DNS do `DOMAIN` → IP da VPS. Entrada: **443**.
 
 ## Backend (local, sem Docker)
 

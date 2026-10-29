@@ -1,7 +1,25 @@
-# Obsoleto: a rede `edge` e as labels Traefik estão no docker-compose.yml.
-# Mantido vazio de override para não quebrar scripts antigos.
+# Overlay Traefik (só com domínio DNS).
+#   cd traefik && docker compose up -d
+#   DOMAIN=app.seudominio.com CORS_ORIGINS=https://app.seudominio.com \
+#     docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
 #
-# Uso atual:
-#   1) cd traefik && docker compose up -d
-#   2) cd .. && docker compose up -d --build
-services: {}
+# Sem domínio: use só docker-compose.yml → http://IP:8080
+
+services:
+  frontend:
+    ports: !reset []
+    networks:
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=edge
+      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:?defina DOMAIN para o modo Traefik}`)
+      - traefik.http.routers.veracidade.entrypoints=websecure
+      - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
+      - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker
+      - traefik.http.services.veracidade.loadbalancer.server.port=80
+
+networks:
+  edge:
+    external: true
+    name: edge

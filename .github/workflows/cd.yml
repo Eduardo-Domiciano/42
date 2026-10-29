@@ -35,15 +35,17 @@ jobs:
           docker --host unix:///var/run/docker.sock info >/dev/null
           docker --host unix:///var/run/docker.sock compose version
 
-      # 1) arquivo na VPS  2) Variables/Secrets do GitHub
-      - name: Resolve DOMAIN
+      # Opcional: DOMAIN (Traefik/HTTPS). Sem DOMAIN = modo IP :8080
+      - name: Resolve deploy env
         env:
           GH_DOMAIN: ${{ vars.DOMAIN || secrets.DOMAIN }}
           GH_CORS: ${{ vars.CORS_ORIGINS || secrets.CORS_ORIGINS }}
+          GH_HOST_PORT: ${{ vars.HOST_PORT || secrets.HOST_PORT }}
         run: |
           set -euo pipefail
           DOMAIN="${GH_DOMAIN:-}"
           CORS_ORIGINS="${GH_CORS:-}"
+          HOST_PORT="${GH_HOST_PORT:-}"
 
           for f in "${HOME}/42.cd.env" "${HOME}/actions-runner/42.cd.env" "/etc/42/cd.env"; do
             if [ -f "$f" ]; then
@@ -53,27 +55,29 @@ jobs:
             fi
           done
 
-          # GitHub tem prioridade se estiver preenchido
           if [ -n "${GH_DOMAIN:-}" ]; then
             DOMAIN="$GH_DOMAIN"
           fi
           if [ -n "${GH_CORS:-}" ]; then
             CORS_ORIGINS="$GH_CORS"
           fi
-
-          if [ -z "${DOMAIN:-}" ]; then
-            echo "::error::DOMAIN vazio."
-            echo "Na VPS rode:"
-            echo "  printf '%s\\n' 'DOMAIN=seu.dominio.com' 'CORS_ORIGINS=https://seu.dominio.com' > ~/42.cd.env"
-            echo "Ou no GitHub: Settings → Actions → Variables → DOMAIN"
-            exit 1
+          if [ -n "${GH_HOST_PORT:-}" ]; then
+            HOST_PORT="$GH_HOST_PORT"
           fi
 
-          {
-            echo "DOMAIN=${DOMAIN}"
-            echo "CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN}}"
-          } >> "$GITHUB_ENV"
-          echo "DOMAIN=${DOMAIN}"
+          if [ -n "${DOMAIN:-}" ]; then
+            echo "Modo: Traefik/HTTPS (DOMAIN=${DOMAIN})"
+            {
+              echo "DOMAIN=${DOMAIN}"
+              echo "CORS_ORIGINS=${CORS_ORIGINS:-https://${DOMAIN}}"
+            } >> "$GITHUB_ENV"
+          else
+            echo "Modo: IP/HTTP (sem DOMAIN) — http://IP:${HOST_PORT:-8080}"
+            echo "HOST_PORT=${HOST_PORT:-8080}" >> "$GITHUB_ENV"
+            if [ -n "${CORS_ORIGINS:-}" ]; then
+              echo "CORS_ORIGINS=${CORS_ORIGINS}" >> "$GITHUB_ENV"
+            fi
+          fi
 
       - name: Deploy
         run: bash ./test/test_cd.sh

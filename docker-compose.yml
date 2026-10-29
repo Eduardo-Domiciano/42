@@ -37,23 +37,14 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: 42-frontend
-    # Sem publish no host: entrada só pelo Traefik (80/443 na rede edge).
-    expose:
-      - "80"
+    # Modo IP / local: publica no host. Com domínio, use também docker-compose.edge.yml
+    # (remove esta porta e manda o tráfego pelo Traefik).
+    ports:
+      - "${HOST_PORT:-8080}:80"
     depends_on:
       - backend
     networks:
       - default
-      - edge
-    labels:
-      - traefik.enable=true
-      - traefik.docker.network=edge
-      # DOMAIN é obrigatório no deploy (VPS); no CI usa localhost só para interpolar o YAML.
-      - traefik.http.routers.veracidade.rule=Host(`${DOMAIN:-localhost}`)
-      - traefik.http.routers.veracidade.entrypoints=websecure
-      - traefik.http.routers.veracidade.tls.certresolver=letsencrypt
-      - traefik.http.routers.veracidade.middlewares=edge-ratelimit@docker,edge-inflight@docker
-      - traefik.http.services.veracidade.loadbalancer.server.port=80
     restart: unless-stopped
     deploy:
       resources:
@@ -63,9 +54,3 @@ services:
 
 volumes:
   veracidade_data:
-
-networks:
-  # Criada pelo Traefik (traefik/docker-compose.yml). Suba o Traefik antes do app.
-  edge:
-    external: true
-    name: edge
