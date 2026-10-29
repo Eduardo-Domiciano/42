@@ -74,14 +74,13 @@ jobs:
           if [ -n "${GH_TRAEFIK_AUTH:-}" ]; then TRAEFIK_DASHBOARD_AUTH="$GH_TRAEFIK_AUTH"; fi
 
           echo "Deploy: Traefik + app 42 (edge)"
-          {
-            [ -n "${DOMAIN:-}" ] && echo "DOMAIN=${DOMAIN}"
-            [ -n "${CORS_ORIGINS:-}" ] && echo "CORS_ORIGINS=${CORS_ORIGINS}"
-            [ -n "${HOST_PORT:-}" ] && echo "HOST_PORT=${HOST_PORT}"
-            [ -n "${ACME_EMAIL:-}" ] && echo "ACME_EMAIL=${ACME_EMAIL}"
-            [ -n "${TRAEFIK_DASHBOARD_HOST:-}" ] && echo "TRAEFIK_DASHBOARD_HOST=${TRAEFIK_DASHBOARD_HOST}"
-            [ -n "${TRAEFIK_DASHBOARD_AUTH:-}" ] && echo "TRAEFIK_DASHBOARD_AUTH=${TRAEFIK_DASHBOARD_AUTH}"
-          } >> "$GITHUB_ENV"
+          # Com set -e, `[ -n "" ] && echo` retorna 1 — usar if, não && no bloco.
+          if [ -n "${DOMAIN:-}" ]; then echo "DOMAIN=${DOMAIN}" >> "$GITHUB_ENV"; fi
+          if [ -n "${CORS_ORIGINS:-}" ]; then echo "CORS_ORIGINS=${CORS_ORIGINS}" >> "$GITHUB_ENV"; fi
+          if [ -n "${HOST_PORT:-}" ]; then echo "HOST_PORT=${HOST_PORT}" >> "$GITHUB_ENV"; fi
+          if [ -n "${ACME_EMAIL:-}" ]; then echo "ACME_EMAIL=${ACME_EMAIL}" >> "$GITHUB_ENV"; fi
+          if [ -n "${TRAEFIK_DASHBOARD_HOST:-}" ]; then echo "TRAEFIK_DASHBOARD_HOST=${TRAEFIK_DASHBOARD_HOST}" >> "$GITHUB_ENV"; fi
+          if [ -n "${TRAEFIK_DASHBOARD_AUTH:-}" ]; then echo "TRAEFIK_DASHBOARD_AUTH=${TRAEFIK_DASHBOARD_AUTH}" >> "$GITHUB_ENV"; fi
 
       - name: Deploy
         run: bash ./test/test_cd.sh
