@@ -52,6 +52,8 @@ jobs:
           TRAEFIK_DASHBOARD_HOST="${GH_TRAEFIK_HOST:-}"
           TRAEFIK_DASHBOARD_AUTH="${GH_TRAEFIK_AUTH:-}"
 
+          # shellcheck source=../../test/common.sh
+          source ./test/common.sh
           for f in \
             "${HOME}/42.cd.env" \
             "${HOME}/actions-runner/42.cd.env" \
@@ -59,12 +61,9 @@ jobs:
             "${GITHUB_WORKSPACE}/.env" \
             "${GITHUB_WORKSPACE}/traefik/.env"
           do
-            if [ -f "$f" ]; then
-              echo "Lendo $f"
-              # shellcheck disable=SC1090
-              set -a && . "$f" && set +a
-            fi
+            load_dotenv "$f" || true
           done
+
 
           if [ -n "${GH_DOMAIN:-}" ]; then DOMAIN="$GH_DOMAIN"; fi
           if [ -n "${GH_CORS:-}" ]; then CORS_ORIGINS="$GH_CORS"; fi

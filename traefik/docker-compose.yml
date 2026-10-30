@@ -1,10 +1,7 @@
 # Traefik — incluído pelo docker-compose.edge.yml na raiz do 42.
-# Sobe junto com o app:
 #   docker compose -f docker-compose.yml -f docker-compose.edge.yml up -d --build
 #
-# Isolado (só o proxy):
-#   docker compose -f traefik/docker-compose.yml --project-directory . up -d
-#
+# Dashboard: http://IP/dashboard/  (basic auth)
 # Portas: 80:80 e 443:443 (nunca 80:8080).
 
 services:
@@ -18,12 +15,19 @@ services:
     ports:
       - "80:80"
       - "443:443"
+    env_file:
+      - path: .env
+        required: false
+      - path: ../.env
+        required: false
     environment:
       ACME_EMAIL: ${ACME_EMAIL:-noreply@localhost}
       TRAEFIK_DASHBOARD_HOST: ${TRAEFIK_DASHBOARD_HOST:-traefik.localhost}
-      TRAEFIK_DASHBOARD_AUTH: ${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$H6usfffV$$.Hu8GHgkdPbTfLDJyttgR/}
+      # $$ no Compose → $ no container (hash apr1)
+      TRAEFIK_DASHBOARD_AUTH: ${TRAEFIK_DASHBOARD_AUTH}
     command:
       - --api.dashboard=true
+      - --api.insecure=false
       - --log.level=INFO
       - --accesslog=true
       - --providers.docker=true
@@ -54,16 +58,22 @@ services:
       - traefik.http.middlewares.edge-ratelimit.ratelimit.period=1s
       - traefik.http.middlewares.edge-ratelimit.ratelimit.burst=${TRAEFIK_RATE_BURST:-40}
       - traefik.http.middlewares.edge-inflight.inflightreq.amount=${TRAEFIK_INFLIGHT:-40}
-      - traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DASHBOARD_HOST:-traefik.localhost}`)
+      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH}
+      # HTTP sem DNS: http://IP/dashboard/  (api@internal já serve /dashboard e /api)
+      - traefik.http.routers.dashboard.rule=PathPrefix(`/dashboard`) || PathPrefix(`/api`)
+      - traefik.http.routers.dashboard.entrypoints=web
+      - traefik.http.routers.dashboard.priority=100
       - traefik.http.routers.dashboard.service=api@internal
-      - traefik.http.routers.dashboard.entrypoints=websecure
-      - traefik.http.routers.dashboard.tls.certresolver=letsencrypt
       - traefik.http.routers.dashboard.middlewares=dashboard-auth,edge-ratelimit,edge-inflight
-      - traefik.http.middlewares.dashboard-auth.basicauth.users=${TRAEFIK_DASHBOARD_AUTH:-admin:$$apr1$$H6usfffV$$.Hu8GHgkdPbTfLDJyttgR/}
+      # HTTPS com host: https://TRAEFIK_DASHBOARD_HOST/
+      - traefik.http.routers.dashboard-host.rule=Host(`${TRAEFIK_DASHBOARD_HOST}`) && (PathPrefix(`/dashboard`) || PathPrefix(`/api`))
+      - traefik.http.routers.dashboard-host.entrypoints=websecure
+      - traefik.http.routers.dashboard-host.priority=100
+      - traefik.http.routers.dashboard-host.service=api@internal
+      - traefik.http.routers.dashboard-host.tls=true
+      - traefik.http.routers.dashboard-host.middlewares=dashboard-auth,edge-ratelimit,edge-inflight
 
 networks:
-  # Externa: pode já existir de um `up` antigo do Traefik.
-  # O CD/README criam com: docker network create edge
   edge:
     name: edge
     external: true

@@ -16,9 +16,8 @@ Scripts e checagens para validar CI/CD localmente antes do push.
 
 ## Observacoes
 
-- Na raiz do projeto: `./test/run.sh`
-- Sem recriar containers: `./test/run.sh --no-deploy`
-- Docker Desktop precisa estar ligado.
+- `./test/run.sh` — rolling deploy (só recria o que mudou).
+- `./test/run.sh --no-deploy` — valida build/YAML sem tocar nos containers.
+- `./test/run.sh --recreate` — force-recreate (downtime curto).
 - Actions chama `test_ci.sh` / `test_cd.sh` (mesma lógica).
-- Se a porta 8080 estiver presa: `sudo fuser -k 8080/tcp` ou `HOST_PORT=8088`.
 - Detalhes: `docs/ci-cd.md`.

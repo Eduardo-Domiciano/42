@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Roda a suíte local que valida CI/CD antes do push.
-#   ./test/run.sh
-#   ./test/run.sh --no-deploy   # não sobe/recria containers
-#   ./test/run.sh --push        # CD também publica no GHCR
+#   ./test/run.sh                 # build + up rolling (não derruba Traefik à toa)
+#   ./test/run.sh --no-deploy     # só build/YAML (zero impacto no que está no ar)
+#   ./test/run.sh --recreate      # deploy com force-recreate
+#   ./test/run.sh --push          # CD também publica no GHCR
 set -euo pipefail
 
 TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

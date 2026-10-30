@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# CD real — usado localmente E pelo GitHub Actions (.github/workflows/cd.yml).
-#   ./test/test_cd.sh
-#   ./test/test_cd.sh --no-deploy
+# CD — local e GitHub Actions (.github/workflows/cd.yml).
+#   ./test/test_cd.sh              # build + up (só recria o que mudou; não derruba Traefik à toa)
+#   ./test/test_cd.sh --no-deploy  # só build/tag
+#   ./test/test_cd.sh --recreate   # force-recreate (deploy “limpo”, downtime curto)
 #   ./test/test_cd.sh --push
 set -euo pipefail
 # shellcheck source=common.sh
@@ -9,12 +10,14 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
 
 DO_DEPLOY=1
 DO_PUSH=0
+FORCE_RECREATE=0
 for arg in "$@"; do
   case "$arg" in
     --no-deploy) DO_DEPLOY=0 ;;
+    --recreate) FORCE_RECREATE=1 ;;
     --push) DO_PUSH=1 ;;
     -h|--help)
-      sed -n '2,7p' "$0"
+      sed -n '2,8p' "$0"
       exit 0
       ;;
     *) fail "flag desconhecida: $arg" ;;
@@ -23,19 +26,6 @@ done
 
 echo "== CD =="
 
-# Env: GitHub OU ~/42.cd.env OU traefik/.env / .env na raiz
-# Padrão: Traefik + app juntos (edge). FORCE_HOST_PORT=1 → só :8080
-load_env_file() {
-  local f="$1"
-  [[ -f "$f" ]] || return 1
-  info "carregando ${f}"
-  set -a
-  # shellcheck disable=SC1090
-  source "$f"
-  set +a
-  return 0
-}
-
 load_cd_env() {
   local f
   for f in \
@@ -43,7 +33,7 @@ load_cd_env() {
     "${HOME}/actions-runner/42.cd.env" \
     "/etc/42/cd.env"
   do
-    load_env_file "$f" && return 0
+    load_dotenv "$f" && return 0
   done
   return 1
 }
@@ -55,8 +45,8 @@ detect_pub_ip() {
 }
 
 load_cd_env || true
-load_env_file "${ROOT_DIR}/.env" || true
-load_env_file "${ROOT_DIR}/traefik/.env" || true
+load_dotenv "${ROOT_DIR}/.env" || true
+load_dotenv "${ROOT_DIR}/traefik/.env" || true
 
 setup_docker
 
@@ -145,8 +135,15 @@ if [[ "${DO_DEPLOY}" -eq 1 ]]; then
     free_published_port "${HOST_PORT}"
   fi
 
-  info "docker compose up -d (Traefik + backend + frontend)"
-  docker_cmd compose "${COMPOSE_FILES[@]}" up -d --remove-orphans --force-recreate
+  UP_ARGS=( up -d --remove-orphans )
+  if [[ "${FORCE_RECREATE}" -eq 1 ]]; then
+    info "docker compose up --force-recreate (downtime curto)"
+    UP_ARGS+=( --force-recreate )
+  else
+    # Padrão de mercado: rolling — só recria serviço cuja imagem/config mudou.
+    info "docker compose up -d (rolling; Traefik permanece se não mudou)"
+  fi
+  docker_cmd compose "${COMPOSE_FILES[@]}" "${UP_ARGS[@]}"
   pass "compose no ar"
 
   info "health check via container backend"

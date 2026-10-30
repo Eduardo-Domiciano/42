@@ -13,7 +13,8 @@ Proxy de borda (Traefik) na VPS: HTTPS (Let's Encrypt), roteamento Docker e dash
 ## Observacoes
 
 - Sobe com o app via `../docker-compose.edge.yml` (`include` deste compose).
-- `.env` opcional (defaults no YAML); use `.env.example` para ACME/dashboard reais.
+- Auth/dashboard: `../.env` e/ou `.env` (`TRAEFIK_DASHBOARD_AUTH` com `$$`).
+- Painel: **http://IP/dashboard/** (basic auth).
 - Portas: **80:80** e **443:443** (nunca `80:8080`).
 - Socket: `/var/run/docker.sock` (Docker Engine na VPS).
-- Limites padrão: **0.25 CPU** + **1 GiB**; rate limit + in-flight.
+

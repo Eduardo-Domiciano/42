@@ -15,6 +15,32 @@ pass() { printf '  PASS  %s\n' "$*"; }
 fail() { printf '  FAIL  %s\n' "$*" >&2; exit 1; }
 info() { printf '  ....  %s\n' "$*"; }
 
+# Carrega .env sem `source` (htpasswd tem $apr1$... — bash quebraria com set -u).
+# Aceita $$ do Compose e exporta com $ simples (valor real para o Traefik).
+load_dotenv() {
+  local f="$1" line key val
+  [[ -f "$f" ]] || return 1
+  info "carregando ${f}"
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    line="${line%$'\r'}"
+    [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# ]] && continue
+    [[ "${line}" =~ ^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*[[:space:]]*= ]] || continue
+    key="${line%%=*}"
+    key="${key#"${key%%[![:space:]]*}"}"
+    key="${key%"${key##*[![:space:]]}"}"
+    val="${line#*=}"
+    if [[ "${val}" =~ ^\"(.*)\"$ ]]; then
+      val="${BASH_REMATCH[1]}"
+    elif [[ "${val}" =~ ^\'(.*)\'$ ]]; then
+      val="${BASH_REMATCH[1]}"
+    fi
+    val="${val//\$\$/\$}"
+    printf -v "${key}" '%s' "${val}"
+    export "${key}"
+  done < "${f}"
+  return 0
+}
+
 _docker_bin() {
   local c
   for c in /usr/bin/docker /usr/local/bin/docker /bin/docker; do
