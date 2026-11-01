@@ -63,8 +63,14 @@ API: `http://127.0.0.1:8000/docs`
 - `POST /api/ingest/url` — `{ "url": "https://..." }`
 - `POST /api/ingest/text` — `{ "text": "...", "title": "opcional" }`
 - `POST /api/search/topic` — `{ "topic": "...", "date_from": "2026-10-01", "date_to": "2026-10-20" }`
+- `GET /api/audit/events` — histórico IP + ação + alvo (header `X-Audit-Token`; exige `AUDIT_TOKEN` no `.env`)
 
 **LLM:** desligada por padrão. Claims, filtro de tema e resumos usam heurísticas no código.
+
+## Auditoria (tráfego + análises)
+
+- **Tráfego HTTP** (Traefik, modo edge): `docker exec edge-traefik tail -f /var/log/traefik/access.log` — IP (`ClientHost`) e path.
+- **Análises pedidas**: tabela `analysis_audit` + `GET /api/audit/events` com `X-Audit-Token`. Ver [`docs/ci-cd.md`](docs/ci-cd.md).
 
 ## Acervo de análises (SQLite)
 
@@ -76,6 +82,7 @@ O banco local é o arquivo de análises reutilizáveis:
 - Em nova busca, peers do **mesmo claim** no acervo entram primeiro; stance pode ser reutilizada (`method=acervo`)
 - Resposta com `analysis_cached: true` quando o snapshot bate com o `content_hash`
 - `POST /api/articles/{id}/reanalyze` força nova análise; ingest com `{ "refresh": true }` rebaixa a URL
+- Pedidos de análise: `analysis_audit` (IP, ação, alvo)
 
 ## Frontend (local, sem Docker)
 

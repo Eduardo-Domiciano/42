@@ -67,6 +67,38 @@ docker --host unix:///var/run/docker.sock compose version
 
 Incluído no deploy (não precisa `cd traefik` separado). Portas **80:80** / **443:443**.
 
+`TRAEFIK_DASHBOARD_HOST` deve ser **diferente** do `DOMAIN` do app. Se forem iguais, `/api/...` do ④② pode ir para a API interna do Traefik e o front mostra **Not Found**.
+
+Se a UI abre mas “Analisar” dá **Not Found**: o nginx do frontend precisa fazer proxy de `/api` para o serviço `backend` na rede Compose (`default`). Rebuild do frontend após correção do `nginx.conf` (`proxy_pass` com `$request_uri`).
+
+### Access log (IP + path HTTP)
+
+JSON em volume `traefik_access_logs` → `/var/log/traefik/access.log` no container:
+
+```bash
+docker logs -f edge-traefik
+docker exec edge-traefik tail -f /var/log/traefik/access.log
+# campos úteis: ClientHost, RequestMethod, RequestPath, DownstreamStatus, RouterName
+```
+
+### Auditoria de análises (IP + URL/tema)
+
+No `.env` da raiz:
+
+```env
+AUDIT_TOKEN=troque-por-segredo-longo
+```
+
+Consulta (após rebuild do backend):
+
+```bash
+curl -sS -H "X-Audit-Token: $AUDIT_TOKEN" \
+  "http://127.0.0.1/api/audit/events?limit=50"
+# ou via porta local do frontend: http://127.0.0.1:8080/api/audit/events
+```
+
+Sem `AUDIT_TOKEN` o endpoint responde **404**.
+
 ## O que NÃO é necessário
 
 - Docker Desktop

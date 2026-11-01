@@ -34,16 +34,16 @@ services:
       - traefik.http.middlewares.veracidade-ratelimit.ratelimit.period=1s
       - traefik.http.middlewares.veracidade-ratelimit.ratelimit.burst=${TRAEFIK_RATE_BURST:-40}
       - traefik.http.middlewares.veracidade-inflight.inflightreq.amount=${TRAEFIK_INFLIGHT:-40}
-      # HTTP :80
+      # HTTP :80 — priority alta o bastante para ganhar de routers genéricos
       - traefik.http.routers.veracidade-http.rule=PathPrefix(`/`)
       - traefik.http.routers.veracidade-http.entrypoints=web
-      - traefik.http.routers.veracidade-http.priority=10
+      - traefik.http.routers.veracidade-http.priority=50
       - traefik.http.routers.veracidade-http.service=veracidade
       - traefik.http.routers.veracidade-http.middlewares=veracidade-ratelimit,veracidade-inflight
-      # HTTPS :443 (cert default sem DOMAIN; com edge-tls o Host ganha prioridade)
+      # HTTPS :443 (cert default sem DOMAIN; Host do DOMAIN em edge-tls tem prioridade 100)
       - traefik.http.routers.veracidade-https.rule=PathPrefix(`/`)
       - traefik.http.routers.veracidade-https.entrypoints=websecure
-      - traefik.http.routers.veracidade-https.priority=10
+      - traefik.http.routers.veracidade-https.priority=50
       - traefik.http.routers.veracidade-https.service=veracidade
       - traefik.http.routers.veracidade-https.tls=true
       - traefik.http.routers.veracidade-https.middlewares=veracidade-ratelimit,veracidade-inflight

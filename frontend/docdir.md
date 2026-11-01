@@ -9,7 +9,7 @@ Interface Angular para buscar notícias por URL ou tema+período e ver o resulta
 | `package.json` | Scripts e dependências npm. |
 | `angular.json` | Configuração do Angular CLI. |
 | `Dockerfile` | Build Angular + imagem Nginx. |
-| `nginx.conf` | Serve a UI e faz proxy de `/api` para o backend (DNS Docker em runtime). |
+| `nginx.conf` | UI + proxy `/api` → `backend:8000` (`$request_uri` + DNS Docker). |
 | `.dockerignore` | Arquivos excluídos do build da imagem. |
 
 ## Subpastas

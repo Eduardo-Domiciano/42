@@ -17,4 +17,5 @@ Proxy de borda (Traefik) na VPS: HTTPS (Let's Encrypt), roteamento Docker e dash
 - Painel: **http://IP:8080/dashboard/** (basic auth). App fica na :80/:443.
 - Portas: **80**, **443**, **8080** (dashboard).
 - Socket: `/var/run/docker.sock` (Docker Engine na VPS).
+- Access log JSON (IP + path) em volume `traefik_access_logs` → `/var/log/traefik/access.log`.
 

@@ -7,4 +7,4 @@ Modelos SQLAlchemy persistidos no SQLite.
 | Arquivo | O que faz |
 | --- | --- |
 | `__init__.py` | Reexporta as entidades. |
-| `entities.py` | Source, Article, análises, claims, F4, TopicQuery, BCB, Norma, ClaimNormaHit. |
+| `entities.py` | Source, Article, análises, claims, F4, TopicQuery, BCB, Norma, AnalysisAudit. |

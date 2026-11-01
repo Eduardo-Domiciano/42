@@ -21,6 +21,8 @@ services:
       NORMA_SEARCH_ENABLED: ${NORMA_SEARCH_ENABLED:-true}
       # Import manual: defina LEIS_ROOT e monte o clone leis-main; `python -m scripts.import_leis`
       LEIS_ROOT: ${LEIS_ROOT:-}
+      # Token para GET /api/audit/events (header X-Audit-Token). Vazio = endpoint 404.
+      AUDIT_TOKEN: ${AUDIT_TOKEN:-}
     volumes:
       - veracidade_data:/data
     expose:

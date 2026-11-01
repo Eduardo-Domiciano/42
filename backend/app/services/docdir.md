@@ -23,6 +23,7 @@ Regras de negócio da coleta e análise preliminar.
 | `analysis_cache.py` | Snapshot `article_analyses` e links outbound. |
 | `article_response.py` | Monta `ArticleOut` com cache do acervo. |
 | `article_lookup.py` | Checa acervo por URL/texto/título (+ data) antes de analisar. |
+| `audit.py` | Grava/lista `analysis_audit` (IP + ação + alvo). |
 | `bias_catalog.py` | Leitura do YAML de bias e labels em PT. |
 | `content_classifier.py` | Classifica tipo de conteúdo (artigo, opinião, oficial…). |
 | `heuristic_claims.py` | Extração, fingerprint/near-dup e scores de claims sem LLM. |

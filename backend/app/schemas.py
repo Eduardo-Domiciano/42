@@ -56,6 +56,26 @@ class ReanalyzeRequest(BaseModel):
     refresh: bool = True
 
 
+class AnalysisAuditOut(BaseModel):
+    id: int
+    created_at: datetime
+    client_ip: str
+    action: str
+    target: str
+    article_id: int | None = None
+    status: str
+    detail: str | None = None
+    user_agent: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class AnalysisAuditListOut(BaseModel):
+    events: list[AnalysisAuditOut] = Field(default_factory=list)
+    limit: int = 100
+    offset: int = 0
+
+
 class OutboundLinkOut(BaseModel):
     id: int
     url: str

@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # Pasta do clone leis-main (import); vazio = tentar ../leis-main a partir do backend/
     leis_root: str = ""
 
+    # Auditoria de análises — GET /api/audit/events exige header X-Audit-Token
+    # Se vazio, o endpoint responde 404 (desligado).
+    audit_token: str = ""
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def cors_origin_list(self) -> list[str]:

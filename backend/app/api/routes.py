@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -8,6 +8,8 @@ from app.config import settings
 from app.db import get_db
 from app.models import Article, TopicQuery
 from app.schemas import (
+    AnalysisAuditListOut,
+    AnalysisAuditOut,
     ArticleLookupRequest,
     ArticleLookupResponse,
     ArticleOut,
@@ -22,6 +24,7 @@ from app.schemas import (
 from app.services.analyze import build_panorama
 from app.services.article_lookup import lookup_prior_analysis
 from app.services.article_response import build_article_out
+from app.services.audit import list_audit_events, record_audit, target_for_text
 from app.services.fetch_article import fetch_and_store_article
 from app.services.ingest_text import store_pasted_text
 from app.services.llm_client import llm_configured
@@ -71,6 +74,29 @@ def get_bias_catalog() -> dict:
 def get_themes() -> dict:
     """Temas oficiais selecionáveis (multi); hoje só economia."""
     return {"themes": list_themes()}
+
+
+@router.get("/audit/events", response_model=AnalysisAuditListOut)
+def get_audit_events(
+    limit: int = 100,
+    offset: int = 0,
+    x_audit_token: str | None = Header(default=None, alias="X-Audit-Token"),
+    db: Session = Depends(get_db),
+) -> AnalysisAuditListOut:
+    """Histórico de análises (IP + ação + alvo). Exige AUDIT_TOKEN."""
+    expected = (settings.audit_token or "").strip()
+    if not expected:
+        raise HTTPException(status_code=404, detail="Não encontrado")
+    if not x_audit_token or x_audit_token != expected:
+        raise HTTPException(status_code=401, detail="Token de auditoria inválido")
+    lim = max(1, min(limit, 500))
+    off = max(0, offset)
+    rows = list_audit_events(db, limit=lim, offset=off)
+    return AnalysisAuditListOut(
+        events=[AnalysisAuditOut.model_validate(r) for r in rows],
+        limit=lim,
+        offset=off,
+    )
 
 
 @router.get("/normas/search", response_model=NormaSearchResponse)
@@ -126,12 +152,25 @@ def search_normas_api(
 
 
 @router.post("/ingest/url", response_model=ArticleOut)
-def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> ArticleOut:
+def ingest_url(
+    payload: IngestUrlRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> ArticleOut:
+    target = str(payload.url)
     try:
         article = fetch_and_store_article(
             db, str(payload.url), refresh=payload.refresh
         )
     except Exception as exc:
+        record_audit(
+            db,
+            request=request,
+            action="ingest_url",
+            target=target,
+            status="error",
+            detail=str(exc)[:500],
+        )
         raise HTTPException(status_code=400, detail=f"Falha ao buscar URL: {exc}") from exc
 
     article = db.scalar(
@@ -140,18 +179,40 @@ def ingest_url(payload: IngestUrlRequest, db: Session = Depends(get_db)) -> Arti
         .where(Article.id == article.id)
     )
     if not article:
+        record_audit(
+            db,
+            request=request,
+            action="ingest_url",
+            target=target,
+            status="error",
+            detail="Artigo não persistido",
+        )
         raise HTTPException(status_code=500, detail="Artigo não persistido")
-    return build_article_out(
+    out = build_article_out(
         db,
         article,
         allow_llm=True,
         run_crossref=True,
         themes=normalize_themes(payload.themes),
     )
+    record_audit(
+        db,
+        request=request,
+        action="ingest_url",
+        target=target,
+        article_id=article.id,
+        status="ok",
+    )
+    return out
 
 
 @router.post("/ingest/text", response_model=ArticleOut)
-def ingest_text(payload: IngestTextRequest, db: Session = Depends(get_db)) -> ArticleOut:
+def ingest_text(
+    payload: IngestTextRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> ArticleOut:
+    target = target_for_text(payload.text, payload.title)
     try:
         article = store_pasted_text(
             db,
@@ -160,8 +221,24 @@ def ingest_text(payload: IngestTextRequest, db: Session = Depends(get_db)) -> Ar
             published_at=payload.published_at,
         )
     except ValueError as exc:
+        record_audit(
+            db,
+            request=request,
+            action="ingest_text",
+            target=target,
+            status="error",
+            detail=str(exc)[:500],
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
+        record_audit(
+            db,
+            request=request,
+            action="ingest_text",
+            target=target,
+            status="error",
+            detail=str(exc)[:500],
+        )
         raise HTTPException(
             status_code=400, detail=f"Falha ao gravar texto: {exc}"
         ) from exc
@@ -172,19 +249,38 @@ def ingest_text(payload: IngestTextRequest, db: Session = Depends(get_db)) -> Ar
         .where(Article.id == article.id)
     )
     if not article:
+        record_audit(
+            db,
+            request=request,
+            action="ingest_text",
+            target=target,
+            status="error",
+            detail="Texto não persistido",
+        )
         raise HTTPException(status_code=500, detail="Texto não persistido")
-    return build_article_out(
+    out = build_article_out(
         db,
         article,
         allow_llm=True,
         run_crossref=True,
         themes=normalize_themes(payload.themes),
     )
+    record_audit(
+        db,
+        request=request,
+        action="ingest_text",
+        target=target,
+        article_id=article.id,
+        status="ok",
+    )
+    return out
 
 
 @router.post("/search/topic", response_model=TopicQueryOut)
 def search_topic(
-    payload: TopicSearchRequest, db: Session = Depends(get_db)
+    payload: TopicSearchRequest,
+    request: Request,
+    db: Session = Depends(get_db),
 ) -> TopicQueryOut:
     from dateutil.relativedelta import relativedelta
 
@@ -199,14 +295,34 @@ def search_topic(
             status_code=400,
             detail="O intervalo entre De e Até não pode passar de 1 mês",
         )
-    return run_topic_search(
+    try:
+        result = run_topic_search(
+            db,
+            topic=payload.topic,
+            date_from=payload.date_from,
+            date_to=payload.date_to,
+            on_date=payload.on_date,
+            themes=normalize_themes(payload.themes),
+        )
+    except Exception as exc:
+        record_audit(
+            db,
+            request=request,
+            action="search_topic",
+            target=payload.topic.strip()[:500],
+            status="error",
+            detail=str(exc)[:500],
+        )
+        raise
+    record_audit(
         db,
-        topic=payload.topic,
-        date_from=payload.date_from,
-        date_to=payload.date_to,
-        on_date=payload.on_date,
-        themes=normalize_themes(payload.themes),
+        request=request,
+        action="search_topic",
+        target=payload.topic.strip()[:500],
+        status="ok",
+        detail=f"query_id={result.id} articles={len(result.articles)}",
     )
+    return result
 
 
 @router.get("/topic-queries/{query_id}", response_model=TopicQueryOut)
@@ -267,19 +383,40 @@ def get_topic_query(query_id: int, db: Session = Depends(get_db)) -> TopicQueryO
 
 @router.post("/articles/lookup", response_model=ArticleLookupResponse)
 def lookup_article(
-    payload: ArticleLookupRequest, db: Session = Depends(get_db)
+    payload: ArticleLookupRequest,
+    request: Request,
+    db: Session = Depends(get_db),
 ) -> ArticleLookupResponse:
     """
     Checa se URL/título/texto (+ data) já tem análise no acervo.
     Sem match → found=false (fluxo normal de ingestão).
     """
-    return lookup_prior_analysis(
+    if payload.url:
+        target = str(payload.url)
+    elif payload.title:
+        target = f"title:{payload.title.strip()[:200]}"
+    elif payload.text:
+        target = target_for_text(payload.text, payload.title)
+    else:
+        target = "(vazio)"
+    result = lookup_prior_analysis(
         db,
         url=payload.url,
         title=payload.title,
         text=payload.text,
         published_at=payload.published_at,
     )
+    article_id = result.match.article_id if result.found and result.match else None
+    record_audit(
+        db,
+        request=request,
+        action="lookup",
+        target=target,
+        article_id=article_id,
+        status="ok",
+        detail="found" if result.found else "not_found",
+    )
+    return result
 
 
 @router.get("/articles/{article_id}", response_model=ArticleOut)
@@ -304,6 +441,7 @@ def get_article(
 @router.post("/articles/{article_id}/reanalyze", response_model=ArticleOut)
 def reanalyze_article(
     article_id: int,
+    request: Request,
     payload: ReanalyzeRequest | None = None,
     db: Session = Depends(get_db),
 ) -> ArticleOut:
@@ -314,7 +452,18 @@ def reanalyze_article(
         .where(Article.id == article_id)
     )
     if not article:
+        record_audit(
+            db,
+            request=request,
+            action="reanalyze",
+            target=f"article:{article_id}",
+            article_id=article_id,
+            status="error",
+            detail="Artigo não encontrado",
+        )
         raise HTTPException(status_code=404, detail="Artigo não encontrado")
+
+    target = article.url or f"article:{article_id}"
 
     # Rebaixa a página quando for URL real (não texto colado)
     if body.refresh and not (article.normalized_url or "").startswith("text://"):
@@ -326,14 +475,32 @@ def reanalyze_article(
                 .where(Article.id == article.id)
             )
         except Exception as exc:
+            record_audit(
+                db,
+                request=request,
+                action="reanalyze",
+                target=target,
+                article_id=article_id,
+                status="error",
+                detail=str(exc)[:500],
+            )
             raise HTTPException(
                 status_code=400, detail=f"Falha ao atualizar URL: {exc}"
             ) from exc
         if not article:
+            record_audit(
+                db,
+                request=request,
+                action="reanalyze",
+                target=target,
+                article_id=article_id,
+                status="error",
+                detail="Artigo não persistido",
+            )
             raise HTTPException(status_code=500, detail="Artigo não persistido")
 
     # force: invalida claims/F4 e regenera snapshot
-    return build_article_out(
+    out = build_article_out(
         db,
         article,
         run_claims=True,
@@ -342,3 +509,12 @@ def reanalyze_article(
         allow_llm=True,
         themes=normalize_themes(body.themes),
     )
+    record_audit(
+        db,
+        request=request,
+        action="reanalyze",
+        target=target,
+        article_id=article.id,
+        status="ok",
+    )
+    return out
