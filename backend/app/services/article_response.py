@@ -20,6 +20,7 @@ from app.services.claim_pipeline import ensure_claim_assessments
 from app.services.cross_reference import run_cross_reference_for_article
 from app.services.llm_client import llm_configured
 from app.services.narrative_summary import build_article_narrative
+from app.services.norma_search import run_norma_lookup
 from app.services.themes_catalog import normalize_themes
 
 
@@ -116,6 +117,17 @@ def build_article_out(
     bcb_comparisons = run_bcb_comparison(
         db, article, claims, force=force, themes=analysis_themes
     )
+
+    # Evidência institucional paralela (normas) — não mistura com bias de mídia
+    if claims:
+        norma_hits = run_norma_lookup(
+            db, article, claims, force=force, themes=analysis_themes
+        )
+        if norma_hits:
+            # Recarrega assessments para refletir factors_json / norma_hits
+            claims = ensure_claim_assessments(
+                db, article, allow_llm=False, force=False
+            )
 
     return ArticleOut(
         id=article.id,

@@ -94,6 +94,22 @@ export interface ThemeOption {
   description: string;
 }
 
+export interface ArticleLookupHit {
+  article_id: number;
+  title: string | null;
+  url: string;
+  published_at: string | null;
+  analyzed_at: string | null;
+  fetched_at: string | null;
+  matched_by: string;
+  has_analysis: boolean;
+}
+
+export interface ArticleLookupResponse {
+  found: boolean;
+  match: ArticleLookupHit | null;
+}
+
 export interface BcbComparisonOut {
   claim_id: number;
   claim_text: string;

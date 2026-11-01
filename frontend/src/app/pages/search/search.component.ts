@@ -2,7 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, HostListener, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { ArticleOut, ThemeOption, TopicQueryOut } from '../../models/api.models';
+import {
+  ArticleLookupHit,
+  ArticleOut,
+  ThemeOption,
+  TopicQueryOut,
+} from '../../models/api.models';
 import { ApiService } from '../../services/api.service';
 
 type SearchMode = 'url' | 'topic' | 'text';
@@ -66,9 +71,12 @@ export class SearchComponent implements OnInit {
   })();
 
   loading = false;
+  checkingPrior = false;
   error: string | null = null;
   articleResult: ArticleOut | null = null;
   topicResult: TopicQueryOut | null = null;
+  /** Artigo já analisado encontrado no acervo (URL/texto). */
+  priorMatch: ArticleLookupHit | null = null;
   /** IDs de publicações abertas na lista do tema */
   expandedArticleIds = new Set<number>();
 
@@ -82,6 +90,11 @@ export class SearchComponent implements OnInit {
       title: 'Entrada',
       detail:
         'Você cola uma URL, cola o texto da matéria ou digita um tema (com período opcional). No tema, o sistema busca no acervo local e na web; só entram matérias que passam no filtro de relevância (veja o botão P).',
+    },
+    {
+      title: 'Checagem no acervo',
+      detail:
+        'Antes de analisar URL ou texto colado, o sistema busca no banco (URL, hash do texto ou título + data). Se já houver análise, aparece um aviso com a data e o botão Reanalisar; senão, o fluxo segue normal.',
     },
     {
       title: 'Baixar e ler a matéria',
@@ -303,6 +316,11 @@ export class SearchComponent implements OnInit {
       term: 'Acervo (cache)',
       meaning:
         'Análise já gravada no banco e reutilizada. Evita baixar e recalcular o mesmo artigo se o conteúdo não mudou.',
+    },
+    {
+      term: 'Reanalisar',
+      meaning:
+        'Se a checagem prévia achar o mesmo artigo (URL, texto ou título+data), aparece o aviso. Reanalisar rebaixa a página (quando há URL) e refaz claims, cruzamento e snapshot.',
     },
     {
       term: 'Vereditos (Supported / Disputed / Insufficient)',
@@ -635,61 +653,192 @@ export class SearchComponent implements OnInit {
     return { from: `${ym}-01`, to };
   }
 
-  submit(): void {
+  matchedByLabel(matchedBy: string | null | undefined): string {
+    switch (matchedBy) {
+      case 'url':
+        return 'URL';
+      case 'text':
+        return 'texto';
+      case 'title':
+        return 'título';
+      default:
+        return matchedBy || 'acervo';
+    }
+  }
+
+  formatDateTime(iso: string | null | undefined): string {
+    if (!iso) {
+      return 'data desconhecida';
+    }
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) {
+      return iso;
+    }
+    return d.toLocaleString('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    });
+  }
+
+  dismissPriorMatch(): void {
+    this.priorMatch = null;
+  }
+
+  /** Carrega a análise já salva (sem forçar recálculo). */
+  loadPriorAnalysis(): void {
+    if (!this.priorMatch) {
+      return;
+    }
     this.error = null;
+    this.loading = true;
     this.articleResult = null;
     this.topicResult = null;
-    this.expandedArticleIds = new Set();
-    this.loading = true;
+    this.api
+      .getArticle(this.priorMatch.article_id, this.selectedThemes)
+      .subscribe({
+        next: (result) => {
+          this.articleResult = result;
+          this.priorMatch = null;
+          this.loading = false;
+        },
+        error: (err) => {
+          this.error =
+            err?.error?.detail || 'Falha ao carregar a análise do acervo.';
+          this.loading = false;
+        },
+      });
+  }
 
-    if (this.mode === 'url') {
-      if (!this.url.trim()) {
+  /** Rebaixa (se URL) e refaz claims/F4/snapshot. */
+  reanalyzePrior(): void {
+    if (!this.priorMatch) {
+      return;
+    }
+    this.error = null;
+    this.loading = true;
+    this.articleResult = null;
+    this.topicResult = null;
+    this.api
+      .reanalyzeArticle(
+        this.priorMatch.article_id,
+        this.selectedThemes,
+        true,
+      )
+      .subscribe({
+        next: (result) => {
+          this.articleResult = result;
+          this.priorMatch = null;
+          this.loading = false;
+        },
+        error: (err) => {
+          this.error = err?.error?.detail || 'Falha ao reanalisar o artigo.';
+          this.loading = false;
+        },
+      });
+  }
+
+  private runUrlIngest(): void {
+    this.api.ingestUrl(this.url.trim(), this.selectedThemes).subscribe({
+      next: (result) => {
+        this.articleResult = result;
         this.loading = false;
-        this.error = 'Informe uma URL de notícia.';
-        return;
-      }
-      this.api.ingestUrl(this.url.trim(), this.selectedThemes).subscribe({
+      },
+      error: (err) => {
+        this.error = err?.error?.detail || 'Falha ao analisar a URL.';
+        this.loading = false;
+      },
+    });
+  }
+
+  private runTextIngest(): void {
+    this.api
+      .ingestText(
+        this.pastedText.trim(),
+        this.pastedTitle,
+        this.pastedDate || null,
+        this.selectedThemes,
+      )
+      .subscribe({
         next: (result) => {
           this.articleResult = result;
           this.loading = false;
         },
         error: (err) => {
-          this.error = err?.error?.detail || 'Falha ao analisar a URL.';
+          this.error = err?.error?.detail || 'Falha ao analisar o texto.';
           this.loading = false;
         },
       });
+  }
+
+  submit(): void {
+    this.error = null;
+    this.articleResult = null;
+    this.topicResult = null;
+    this.priorMatch = null;
+    this.expandedArticleIds = new Set();
+
+    if (this.mode === 'url') {
+      if (!this.url.trim()) {
+        this.error = 'Informe uma URL de notícia.';
+        return;
+      }
+      this.checkingPrior = true;
+      this.loading = true;
+      this.api
+        .lookupArticle({
+          url: this.url.trim(),
+        })
+        .subscribe({
+          next: (res) => {
+            this.checkingPrior = false;
+            if (res.found && res.match) {
+              this.priorMatch = res.match;
+              this.loading = false;
+              return;
+            }
+            this.runUrlIngest();
+          },
+          error: () => {
+            this.checkingPrior = false;
+            this.runUrlIngest();
+          },
+        });
       return;
     }
 
     if (this.mode === 'text') {
       const body = this.pastedText.trim();
       if (body.length < 80) {
-        this.loading = false;
         this.error = 'Cole um texto com pelo menos cerca de 80 caracteres.';
         return;
       }
+      this.checkingPrior = true;
+      this.loading = true;
       this.api
-        .ingestText(
-          body,
-          this.pastedTitle,
-          this.pastedDate || null,
-          this.selectedThemes,
-        )
+        .lookupArticle({
+          title: this.pastedTitle || null,
+          text: body,
+          published_at: this.pastedDate || null,
+        })
         .subscribe({
-          next: (result) => {
-            this.articleResult = result;
-            this.loading = false;
+          next: (res) => {
+            this.checkingPrior = false;
+            if (res.found && res.match) {
+              this.priorMatch = res.match;
+              this.loading = false;
+              return;
+            }
+            this.runTextIngest();
           },
-          error: (err) => {
-            this.error = err?.error?.detail || 'Falha ao analisar o texto.';
-            this.loading = false;
+          error: () => {
+            this.checkingPrior = false;
+            this.runTextIngest();
           },
         });
       return;
     }
 
     if (!this.topic.trim()) {
-      this.loading = false;
       this.error = 'Informe um tema para buscar.';
       return;
     }
@@ -700,7 +849,6 @@ export class SearchComponent implements OnInit {
     if (this.onMonth) {
       const range = this.monthRange(this.onMonth);
       if (!range) {
-        this.loading = false;
         this.error = 'Informe um mês válido (AAAA-MM).';
         return;
       }
@@ -708,17 +856,16 @@ export class SearchComponent implements OnInit {
       dateTo = range.to;
     } else if (dateFrom && dateTo) {
       if (dateFrom > dateTo) {
-        this.loading = false;
         this.error = 'A data De não pode ser depois de Até.';
         return;
       }
       if (this.exceedsOneMonth(dateFrom, dateTo)) {
-        this.loading = false;
         this.error = 'O intervalo entre De e Até não pode passar de 1 mês.';
         return;
       }
     }
 
+    this.loading = true;
     this.api
       .searchTopic({
         topic: this.topic.trim(),

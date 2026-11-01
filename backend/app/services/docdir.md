@@ -13,6 +13,8 @@ Regras de negócio da coleta e análise preliminar.
 | `topic_officials.py` | Monta `site:` dos oficiais primary conforme temas selecionados. |
 | `bcb_sgs.py` | API SGS do BCB + cache anual (`bcb_series_annual`). |
 | `bcb_compare.py` | Compara claims com séries BCB se o tema economia foi selecionado. |
+| `norma_import.py` | ETL frontmatter leis-main → tabela `normas` (upsert por urn). |
+| `norma_search.py` | FTS5 de ementa/título + gatilho `run_norma_lookup` nos claims. |
 | `themes_catalog.py` | Temas oficiais selecionáveis (hoje: economia). |
 | `topic_search.py` | Busca local + web por tema/período com filtro de relevância. |
 | `topic_relevance.py` | Tokeniza tema, score lexical/semântico e aceita/descarta (camadas). |
@@ -20,6 +22,7 @@ Regras de negócio da coleta e análise preliminar.
 | `analyze.py` | Scores/notas preliminares por artigo e panorama. |
 | `analysis_cache.py` | Snapshot `article_analyses` e links outbound. |
 | `article_response.py` | Monta `ArticleOut` com cache do acervo. |
+| `article_lookup.py` | Checa acervo por URL/texto/título (+ data) antes de analisar. |
 | `bias_catalog.py` | Leitura do YAML de bias e labels em PT. |
 | `content_classifier.py` | Classifica tipo de conteúdo (artigo, opinião, oficial…). |
 | `heuristic_claims.py` | Extração, fingerprint/near-dup e scores de claims sem LLM. |

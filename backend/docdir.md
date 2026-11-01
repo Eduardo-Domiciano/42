@@ -17,6 +17,7 @@ API e persistência do app: ingestão de URLs, busca por tema e análise prelimi
 | Pasta | O que guarda |
 | --- | --- |
 | `app/` | Código da API, modelos e serviços. |
+| `scripts/` | CLIs pontuais (ex.: import de normas do leis-main). |
 | `data/` | Banco SQLite local (gerado em runtime). |
 | `catalog/` | YAML de bias/ownership BR versionado. |
 | `.venv/` | Ambiente virtual Python (não versionado). |

@@ -26,6 +26,36 @@ class TopicSearchRequest(BaseModel):
     themes: list[str] = Field(default_factory=list)
 
 
+class ArticleLookupRequest(BaseModel):
+    """Checagem prévia: URL, título e/ou texto (+ data de publicação opcional)."""
+
+    url: str | None = Field(default=None, max_length=2000)
+    title: str | None = Field(default=None, max_length=400)
+    text: str | None = Field(default=None, max_length=100_000)
+    published_at: date | None = None
+
+
+class ArticleLookupHit(BaseModel):
+    article_id: int
+    title: str | None = None
+    url: str
+    published_at: datetime | None = None
+    analyzed_at: datetime | None = None
+    fetched_at: datetime | None = None
+    matched_by: str
+    has_analysis: bool = True
+
+
+class ArticleLookupResponse(BaseModel):
+    found: bool
+    match: ArticleLookupHit | None = None
+
+
+class ReanalyzeRequest(BaseModel):
+    themes: list[str] = Field(default_factory=list)
+    refresh: bool = True
+
+
 class OutboundLinkOut(BaseModel):
     id: int
     url: str
@@ -131,6 +161,32 @@ class BcbComparisonOut(BaseModel):
     status: str
     note: str = ""
     from_cache: bool = True
+
+
+class NormaOut(BaseModel):
+    id: int
+    urn: str
+    esfera: str
+    uf: str | None = None
+    tipo: str = ""
+    numero: str | None = None
+    data_norma: date | None = None
+    titulo: str | None = None
+    ementa: str | None = None
+    revogada: bool = False
+    fonte_url: str | None = None
+    path_md: str | None = None
+    score: float | None = None
+    snippet: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class NormaSearchResponse(BaseModel):
+    query: str
+    vigente_only: bool = True
+    esfera: str | None = None
+    results: list[NormaOut] = Field(default_factory=list)
 
 
 class ArticleOut(BaseModel):

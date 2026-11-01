@@ -354,8 +354,14 @@ def _assessment_out(row: ClaimAssessment) -> ClaimAssessmentOut:
     factors: list[str] = []
     excerpts: list[str] = []
     try:
-        factors = json.loads(row.factors_json or "[]")
+        raw_factors = json.loads(row.factors_json or "[]")
+        if isinstance(raw_factors, dict):
+            factors = [str(x) for x in (raw_factors.get("factors") or [])]
+        elif isinstance(raw_factors, list):
+            factors = [str(x) for x in raw_factors]
         excerpts = json.loads(row.excerpts_json or "[]")
+        if not isinstance(excerpts, list):
+            excerpts = []
     except json.JSONDecodeError:
         pass
 

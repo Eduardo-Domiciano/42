@@ -18,6 +18,9 @@ services:
       NN_NLI_ENABLED: ${NN_NLI_ENABLED:-true}
       NN_EMBEDDINGS_ENABLED: ${NN_EMBEDDINGS_ENABLED:-true}
       NN_CLICKBAIT_ENABLED: ${NN_CLICKBAIT_ENABLED:-true}
+      NORMA_SEARCH_ENABLED: ${NORMA_SEARCH_ENABLED:-true}
+      # Import manual: defina LEIS_ROOT e monte o clone leis-main; `python -m scripts.import_leis`
+      LEIS_ROOT: ${LEIS_ROOT:-}
     volumes:
       - veracidade_data:/data
     expose:

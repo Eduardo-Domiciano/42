@@ -256,16 +256,63 @@
       </p>
     </div>
 
-    <button type="submit" class="primary" [disabled]="loading">
+    <button type="submit" class="primary" [disabled]="loading || checkingPrior">
       {{
-        loading
-          ? 'Analisando…'
-          : mode === 'text'
-            ? 'Analisar texto'
-            : 'Buscar e analisar'
+        checkingPrior
+          ? 'Consultando acervo…'
+          : loading
+            ? 'Analisando…'
+            : mode === 'text'
+              ? 'Analisar texto'
+              : 'Buscar e analisar'
       }}
     </button>
   </form>
+
+  @if (priorMatch) {
+    <aside class="prior-match" role="status" aria-live="polite">
+      <p class="prior-match-title">Este artigo já foi analisado</p>
+      <p class="prior-match-body">
+        Encontramos no acervo por
+        {{ matchedByLabel(priorMatch.matched_by) }}
+        @if (priorMatch.title) {
+          — “{{ priorMatch.title }}”
+        }
+        . Análise em
+        {{ formatDateTime(priorMatch.analyzed_at) }}
+        @if (priorMatch.published_at) {
+          · publicação {{ formatDateTime(priorMatch.published_at) }}
+        }
+        .
+      </p>
+      <div class="prior-match-actions">
+        <button
+          type="button"
+          class="primary"
+          [disabled]="loading"
+          (click)="reanalyzePrior()"
+        >
+          Reanalisar
+        </button>
+        <button
+          type="button"
+          class="secondary"
+          [disabled]="loading"
+          (click)="loadPriorAnalysis()"
+        >
+          Ver análise salva
+        </button>
+        <button
+          type="button"
+          class="secondary"
+          [disabled]="loading"
+          (click)="dismissPriorMatch()"
+        >
+          Fechar
+        </button>
+      </div>
+    </aside>
+  }
 
   @if (error) {
     <p class="error" role="alert">{{ error }}</p>

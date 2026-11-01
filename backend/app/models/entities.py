@@ -290,3 +290,45 @@ class ArticleBcbComparison(Base):
     results_json: Mapped[str] = mapped_column(Text, default="[]")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Norma(Base):
+    """Metadados de norma jurídica (acervo leis-main). Corpo fica em path_md."""
+
+    __tablename__ = "normas"
+    __table_args__ = (UniqueConstraint("urn", name="uq_normas_urn"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    urn: Mapped[str] = mapped_column(String(512), index=True)
+    esfera: Mapped[str] = mapped_column(String(40), index=True)
+    uf: Mapped[str | None] = mapped_column(String(2), nullable=True, index=True)
+    municipio: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    orgao: Mapped[str | None] = mapped_column(String(80), nullable=True, index=True)
+    tipo: Mapped[str] = mapped_column(String(80), default="")
+    numero: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    data_norma: Mapped[date | None] = mapped_column(Date, nullable=True, index=True)
+    titulo: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ementa: Mapped[str | None] = mapped_column(Text, nullable=True)
+    revogada: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    versao_texto: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    fonte_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    path_md: Mapped[str | None] = mapped_column(Text, nullable=True)
+    baixado_em: Mapped[date | None] = mapped_column(Date, nullable=True)
+    catalog_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
+
+class ClaimNormaHit(Base):
+    """Hit de busca FTS de norma ligado a um claim."""
+
+    __tablename__ = "claim_norma_hits"
+    __table_args__ = (
+        UniqueConstraint("claim_id", "norma_id", name="uq_claim_norma"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    claim_id: Mapped[int] = mapped_column(ForeignKey("claims.id"), index=True)
+    norma_id: Mapped[int] = mapped_column(ForeignKey("normas.id"), index=True)
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    method: Mapped[str] = mapped_column(String(40), default="fts")
+    snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

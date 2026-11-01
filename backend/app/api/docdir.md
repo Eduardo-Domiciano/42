@@ -7,4 +7,4 @@ Rotas HTTP da API.
 | Arquivo | O que faz |
 | --- | --- |
 | `__init__.py` | Marca o pacote. |
-| `routes.py` | Endpoints de health, ingest URL/texto, busca por tema e consulta. |
+| `routes.py` | Health, ingest, lookup/reanalyze, tema, artigos e normas. |

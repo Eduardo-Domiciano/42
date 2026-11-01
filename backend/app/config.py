@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     nn_embed_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     nn_peer_pool_multiplier: int = 3
 
+    # Acervo de normas (leis-main) — busca FTS sob demanda
+    norma_search_enabled: bool = True
+    norma_search_limit: int = 8
+    # Pasta do clone leis-main (import); vazio = tentar ../leis-main a partir do backend/
+    leis_root: str = ""
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def cors_origin_list(self) -> list[str]:

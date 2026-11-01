@@ -8,13 +8,19 @@ from app.config import settings
 from app.db import get_db
 from app.models import Article, TopicQuery
 from app.schemas import (
+    ArticleLookupRequest,
+    ArticleLookupResponse,
     ArticleOut,
     IngestTextRequest,
     IngestUrlRequest,
+    NormaOut,
+    NormaSearchResponse,
+    ReanalyzeRequest,
     TopicQueryOut,
     TopicSearchRequest,
 )
 from app.services.analyze import build_panorama
+from app.services.article_lookup import lookup_prior_analysis
 from app.services.article_response import build_article_out
 from app.services.fetch_article import fetch_and_store_article
 from app.services.ingest_text import store_pasted_text
@@ -65,6 +71,58 @@ def get_bias_catalog() -> dict:
 def get_themes() -> dict:
     """Temas oficiais selecionáveis (multi); hoje só economia."""
     return {"themes": list_themes()}
+
+
+@router.get("/normas/search", response_model=NormaSearchResponse)
+def search_normas_api(
+    q: str,
+    vigente: int = 1,
+    esfera: str | None = None,
+    limit: int | None = None,
+    db: Session = Depends(get_db),
+) -> NormaSearchResponse:
+    """Busca FTS em metadados/ementa de normas (acervo leis-main)."""
+    from app.services.norma_search import search_normas
+
+    if not (q or "").strip():
+        raise HTTPException(status_code=400, detail="Parâmetro q é obrigatório")
+    if not settings.norma_search_enabled:
+        raise HTTPException(status_code=503, detail="Busca de normas desabilitada")
+
+    lim = limit if limit is not None else settings.norma_search_limit
+    lim = max(1, min(lim, 50))
+    hits = search_normas(
+        db,
+        q.strip(),
+        vigente_only=bool(vigente),
+        esfera=esfera or None,
+        limit=lim,
+    )
+    results = [
+        NormaOut(
+            id=h.norma.id,
+            urn=h.norma.urn,
+            esfera=h.norma.esfera,
+            uf=h.norma.uf,
+            tipo=h.norma.tipo,
+            numero=h.norma.numero,
+            data_norma=h.norma.data_norma,
+            titulo=h.norma.titulo,
+            ementa=h.norma.ementa,
+            revogada=h.norma.revogada,
+            fonte_url=h.norma.fonte_url,
+            path_md=h.norma.path_md,
+            score=h.score,
+            snippet=h.snippet,
+        )
+        for h in hits
+    ]
+    return NormaSearchResponse(
+        query=q.strip(),
+        vigente_only=bool(vigente),
+        esfera=esfera,
+        results=results,
+    )
 
 
 @router.post("/ingest/url", response_model=ArticleOut)
@@ -207,8 +265,29 @@ def get_topic_query(query_id: int, db: Session = Depends(get_db)) -> TopicQueryO
     )
 
 
+@router.post("/articles/lookup", response_model=ArticleLookupResponse)
+def lookup_article(
+    payload: ArticleLookupRequest, db: Session = Depends(get_db)
+) -> ArticleLookupResponse:
+    """
+    Checa se URL/título/texto (+ data) já tem análise no acervo.
+    Sem match → found=false (fluxo normal de ingestão).
+    """
+    return lookup_prior_analysis(
+        db,
+        url=payload.url,
+        title=payload.title,
+        text=payload.text,
+        published_at=payload.published_at,
+    )
+
+
 @router.get("/articles/{article_id}", response_model=ArticleOut)
-def get_article(article_id: int, db: Session = Depends(get_db)) -> ArticleOut:
+def get_article(
+    article_id: int,
+    themes: str | None = None,
+    db: Session = Depends(get_db),
+) -> ArticleOut:
     article = db.scalar(
         select(Article)
         .options(joinedload(Article.source))
@@ -216,11 +295,19 @@ def get_article(article_id: int, db: Session = Depends(get_db)) -> ArticleOut:
     )
     if not article:
         raise HTTPException(status_code=404, detail="Artigo não encontrado")
-    return build_article_out(db, article)
+    theme_list = [t.strip() for t in (themes or "").split(",") if t.strip()]
+    return build_article_out(
+        db, article, themes=normalize_themes(theme_list)
+    )
 
 
 @router.post("/articles/{article_id}/reanalyze", response_model=ArticleOut)
-def reanalyze_article(article_id: int, db: Session = Depends(get_db)) -> ArticleOut:
+def reanalyze_article(
+    article_id: int,
+    payload: ReanalyzeRequest | None = None,
+    db: Session = Depends(get_db),
+) -> ArticleOut:
+    body = payload or ReanalyzeRequest()
     article = db.scalar(
         select(Article)
         .options(joinedload(Article.source))
@@ -228,7 +315,30 @@ def reanalyze_article(article_id: int, db: Session = Depends(get_db)) -> Article
     )
     if not article:
         raise HTTPException(status_code=404, detail="Artigo não encontrado")
+
+    # Rebaixa a página quando for URL real (não texto colado)
+    if body.refresh and not (article.normalized_url or "").startswith("text://"):
+        try:
+            article = fetch_and_store_article(db, article.url, refresh=True)
+            article = db.scalar(
+                select(Article)
+                .options(joinedload(Article.source))
+                .where(Article.id == article.id)
+            )
+        except Exception as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Falha ao atualizar URL: {exc}"
+            ) from exc
+        if not article:
+            raise HTTPException(status_code=500, detail="Artigo não persistido")
+
     # force: invalida claims/F4 e regenera snapshot
     return build_article_out(
-        db, article, run_claims=True, run_crossref=True, force=True, allow_llm=True
+        db,
+        article,
+        run_claims=True,
+        run_crossref=True,
+        force=True,
+        allow_llm=True,
+        themes=normalize_themes(body.themes),
     )

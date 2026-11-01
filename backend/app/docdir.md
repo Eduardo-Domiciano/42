@@ -11,7 +11,7 @@ Pacote principal da API FastAPI.
 | `db.py` | Engine SQLAlchemy e sessão. |
 | `main.py` | App FastAPI, CORS e seed no startup. |
 | `schemas.py` | Contratos Pydantic da API. |
-| `db_migrate.py` | ALTER TABLE leve para novas colunas no SQLite. |
+| `db_migrate.py` | ALTER TABLE leve + criação FTS5 `norma_fts` e triggers. |
 
 ## Subpastas
 

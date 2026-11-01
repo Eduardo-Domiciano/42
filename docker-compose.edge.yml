@@ -8,10 +8,18 @@
 include:
   - path: traefik/docker-compose.yml
 
+# Garante o mesmo nome que o Traefik observa (providers.docker.network=edge).
+networks:
+  edge:
+    name: edge
+    external: true
+
 services:
   frontend:
     depends_on:
       traefik:
+        condition: service_started
+      backend:
         condition: service_started
     ports: !reset []
     networks:
