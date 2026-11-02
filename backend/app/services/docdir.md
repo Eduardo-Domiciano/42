@@ -32,7 +32,7 @@ Regras de negócio da coleta e análise preliminar.
 | `web_search.py` | Busca URLs via DuckDuckGo (prioriza news; text só se faltar). |
 | `stance.py` | Classifica se evidência apoia/refuta o claim (heurística + NLI). |
 | `cross_reference.py` | Cruzamento F4: evidências, ownership, veto, calibração. |
-| `narrative_summary.py` | Resumo em português simples (templates; sem LLM). |
+| `narrative_summary.py` | Resumo por afirmativa (F3/F4 em bullets; templates). |
 | `nn_runtime.py` | Carrega lazy modelos NLI/embeddings; status e flags. |
 | `nn_nli.py` | Stance complementar via mDeBERTa XNLI. |
 | `nn_embeddings.py` | Similaridade e ranking de pares por embeddings. |

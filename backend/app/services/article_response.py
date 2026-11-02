@@ -25,21 +25,9 @@ from app.services.themes_catalog import normalize_themes
 
 
 def _narrative_looks_technical(text: str) -> bool:
-    """True se o resumo em cache ainda não é o estilo humanizado atual."""
+    """True se o resumo em cache ainda não é o formato por afirmativa."""
     t = (text or "").lower()
-    if "em termos simples" not in t:
-        return True
-    markers = (
-        "claims (afirmativas)",
-        "cross-reference (cruzamento",
-        "calibration (calibração",
-        "vereditos isolados (f3)",
-        "ownership (grupo dono)",
-        "afirmativas que a análise destacou",
-        "ao confrontar",
-        "pela análise automática",
-    )
-    return any(m in t for m in markers)
+    return "resumo por afirmativa" not in t
 
 
 def build_article_out(

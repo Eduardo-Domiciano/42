@@ -1218,14 +1218,6 @@ textarea:focus {
   color: var(--ink);
 }
 
-.scores-table .claim-just {
-  display: block;
-  margin-top: 0.3rem;
-  font-size: 0.78rem;
-  color: var(--ink-soft);
-  line-height: 1.35;
-}
-
 .scores-table.compact .claim-cell {
   max-width: 16rem;
 }
@@ -1309,10 +1301,72 @@ textarea:focus {
   line-height: 1.55;
   color: var(--ink);
   font-size: 0.98rem;
+  white-space: pre-line;
 }
 
 .narrative p:last-child {
   margin-bottom: 0;
+}
+
+.narrative-meta {
+  margin: 0 0 0.9rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  font-size: 0.92rem;
+  white-space: pre-line;
+}
+
+.narrative-claim {
+  margin: 0 0 1rem;
+}
+
+.narrative-claim-text {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  background: #fff;
+  border: 1px solid #000;
+  color: var(--ink);
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.claim-num {
+  font-weight: 700;
+  margin-right: 0.25rem;
+}
+
+.narrative-notes {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.narrative-note {
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: #fff;
+}
+
+.narrative-note.tone-a {
+  background: #6e6860;
+}
+
+.narrative-note.tone-b {
+  background: #1f1c1a;
+}
+
+.phase-tag {
+  font-weight: 700;
+  cursor: help;
+  border-bottom: 1px dotted currentColor;
+  text-decoration: none;
+}
+
+.narrative-note .phase-tag {
+  color: #fff;
 }
 
 .narrative.compact {
@@ -1325,8 +1379,18 @@ textarea:focus {
   font-size: 0.95rem;
 }
 
-.narrative.compact p {
+.narrative.compact .narrative-claim-text {
   font-size: 0.92rem;
+  padding: 0.55rem 0.7rem;
+}
+
+.narrative.compact .narrative-note {
+  font-size: 0.85rem;
+  padding: 0.45rem 0.7rem;
+}
+
+.narrative.compact .narrative-meta {
+  font-size: 0.88rem;
 }
 
 .narrative.final {

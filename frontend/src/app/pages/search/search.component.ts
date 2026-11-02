@@ -22,6 +22,20 @@ export interface AnalysisStep {
   detail: string;
 }
 
+/** Bloco do resumo por afirmativa (UI). */
+export interface NarrativeBlock {
+  kind: 'intro' | 'claim' | 'closing';
+  claimIndex?: number;
+  claimText?: string;
+  notes?: string[];
+  text?: string;
+}
+
+export interface PhaseSegment {
+  text: string;
+  tip?: string;
+}
+
 @Component({
   selector: 'app-search',
   standalone: true,
@@ -119,7 +133,7 @@ export class SearchComponent implements OnInit {
     {
       title: 'Análise preliminar + resumo',
       detail:
-        'Com fonte, tipo e claims, monta-se o veredito preliminar e o resumo em português simples (templates; sem depender de LLM). Tudo fica gravado no snapshot para a próxima vez.',
+        'Com fonte, tipo e claims, monta-se o veredito preliminar e um resumo por afirmativa (texto da claim + notas F3/F4 em bullets; sem nota geral genérica). Tudo fica gravado no snapshot.',
     },
     {
       title: 'Temas oficiais (opcional)',
@@ -550,6 +564,89 @@ export class SearchComponent implements OnInit {
       .split(/\n\n+/)
       .map((p) => p.trim())
       .filter(Boolean);
+  }
+
+  readonly tipF3 =
+    'F3 — Afirmativas (claims): o que a matéria afirma e como isso se sustenta dentro do próprio texto (veredito isolado, scores, etc.).';
+  readonly tipF4 =
+    'F4 — Cruzamento de referências: a mesma afirmativa confrontada com outras matérias/fontes (apoia, refuta, consenso, calibração).';
+  readonly tipF3F4 =
+    'F3×F4 — Compara o veredito isolado da afirmativa (F3) com o consenso do cruzamento entre fontes (F4).';
+
+  /** Destaca F3/F4 em negrito com tooltip. */
+  splitPhaseMarkers(text: string | null | undefined): PhaseSegment[] {
+    const raw = text || '';
+    if (!raw) {
+      return [];
+    }
+    const re = /(F3\s*[×x]\s*F4|F3|F4)/g;
+    const out: PhaseSegment[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(raw)) !== null) {
+      if (m.index > last) {
+        out.push({ text: raw.slice(last, m.index) });
+      }
+      const token = m[1];
+      const tip = /F3\s*[×x]\s*F4/i.test(token)
+        ? this.tipF3F4
+        : token === 'F3'
+          ? this.tipF3
+          : this.tipF4;
+      out.push({ text: token, tip });
+      last = m.index + token.length;
+    }
+    if (last < raw.length) {
+      out.push({ text: raw.slice(last) });
+    }
+    return out.length ? out : [{ text: raw }];
+  }
+
+  /** Parseia “Resumo por afirmativa” em intro / claims / fechamento. */
+  parseNarrative(text: string | null | undefined): NarrativeBlock[] {
+    const blocks: NarrativeBlock[] = [];
+    const parts = this.summaryParagraphs(text);
+    for (const part of parts) {
+      const lines = part
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean);
+      if (!lines.length) {
+        continue;
+      }
+      const claimMatch = lines[0].match(/^(\d+)\.\s+(.+)$/);
+      if (claimMatch) {
+        const notes = lines
+          .slice(1)
+          .map((l) => l.replace(/^[-•]\s*/, '').trim())
+          .filter(Boolean);
+        blocks.push({
+          kind: 'claim',
+          claimIndex: Number(claimMatch[1]),
+          claimText: claimMatch[2].trim(),
+          notes,
+        });
+        continue;
+      }
+      const joined = lines.join('\n');
+      const isIntro =
+        /^resumo por afirmativa/i.test(joined) ||
+        blocks.every((b) => b.kind !== 'claim');
+      blocks.push({
+        kind: isIntro && blocks.every((b) => b.kind !== 'claim') ? 'intro' : 'closing',
+        text: joined,
+      });
+    }
+    // Reclassifica: tudo após o último claim vira closing
+    let sawClaim = false;
+    for (let i = 0; i < blocks.length; i++) {
+      if (blocks[i].kind === 'claim') {
+        sawClaim = true;
+      } else if (sawClaim && blocks[i].kind === 'intro') {
+        blocks[i] = { ...blocks[i], kind: 'closing' };
+      }
+    }
+    return blocks;
   }
 
   /** Blocos do resumo geral do tema (seções ## + bullets). */

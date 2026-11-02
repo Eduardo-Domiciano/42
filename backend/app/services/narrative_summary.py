@@ -64,24 +64,100 @@ def _clip(text: str, n: int = 160) -> str:
     return t[: n - 1].rstrip() + "…"
 
 
-def _claim_plain_note(c: ClaimAssessmentOut) -> str:
+def _claim_f3_bullets(c: ClaimAssessmentOut) -> list[str]:
+    """Notas F3 só desta afirmativa (texto legível, sem repetir a tabela)."""
     bits: list[str] = []
     if c.score_internal_support >= 0.55 and c.score_distortion <= 0.45:
-        bits.append("traz algum respaldo no próprio texto (números, citações ou links)")
+        bits.append(
+            "Traz algum respaldo no próprio texto (números, citações ou links)."
+        )
     elif c.score_internal_support < 0.4:
-        bits.append("aparece mais como afirmação, sem evidência clara no texto")
+        bits.append(
+            "Aparece mais como afirmação, sem evidência clara no próprio texto."
+        )
     else:
-        bits.append("tem respaldo parcial no texto")
+        bits.append("Tem respaldo parcial no texto.")
 
     if c.score_temporal < 0.4:
-        bits.append("fica vaga quanto ao momento em que isso teria ocorrido")
+        bits.append("Fica vaga quanto ao momento em que isso teria ocorrido.")
+    if c.score_geographic < 0.4:
+        bits.append("Pouca âncora de lugar ou instituição no trecho.")
     if c.score_partisan >= 0.55:
-        bits.append("carrega tom partidário ou polarizado")
+        bits.append("Carrega tom partidário ou polarizado.")
     if c.score_distortion >= 0.55:
-        bits.append("há risco de exagero ou título pouco alinhado ao conteúdo")
+        bits.append("Há risco de exagero ou título pouco alinhado ao conteúdo.")
     if c.verdict == "opinion":
-        bits.append("soa sobretudo como opinião")
-    return "; ".join(bits)
+        bits.append("Soa sobretudo como opinião.")
+    elif c.verdict == "disputed":
+        bits.append("A leitura isolada (F3) aponta contestação ou tensão no texto.")
+    elif c.verdict == "supported":
+        bits.append("A leitura isolada (F3) encontra suporte interno razoável.")
+    elif c.verdict == "insufficient":
+        bits.append(
+            "A leitura isolada (F3) considera a evidência insuficiente para "
+            "fechar o ponto."
+        )
+    return bits
+
+
+def _claim_f4_bullets(x: CrossReferenceOut | None) -> list[str]:
+    """Notas F4 só desta afirmativa."""
+    if x is None:
+        return [
+            "Não houve cruzamento com outras matérias para esta afirmativa "
+            "(poucos resultados ou cruzamento não rodou)."
+        ]
+    supports = sum(1 for e in x.evidences if e.stance == "supports")
+    refutes = sum(1 for e in x.evidences if e.stance == "refutes")
+    related = sum(1 for e in x.evidences if e.stance == "related")
+    bits: list[str] = []
+    bits.append(
+        f"Em outras publicações: {supports} sinal(is) na mesma direção, "
+        f"{refutes} em sentido contrário"
+        + (f", {related} só relacionados" if related else "")
+        + "."
+    )
+    cons = x.consensus_verdict or ""
+    if cons == "supported" and supports > refutes:
+        bits.append(
+            "Há alguma coincidência com outras publicações, o que aumenta a "
+            "confiança nesta afirmativa, mas ainda não fecha o caso como "
+            "verdade absoluta."
+        )
+    elif cons == "disputed" or refutes > supports:
+        bits.append(
+            "O que esta afirmativa diz não encontra coro tranquilo do lado "
+            "de fora — há mais discordância ou outra versão."
+        )
+    elif supports == 0 and refutes == 0:
+        bits.append(
+            "O cenário externo ficou nebuloso: poucas matérias úteis para "
+            "confirmar ou desmentir esta afirmativa."
+        )
+    else:
+        bits.append(
+            f"Consenso do cruzamento: {_verdict_pt(cons)}; "
+            f"alinhamento F3×F4 cerca de {x.calibration_score:.0%}."
+        )
+    if x.primary_veto:
+        bits.append(
+            "Há veto de fonte oficial/primária no cruzamento — trate com "
+            "mais cautela."
+        )
+    if x.independent_voices <= 1 and (supports + refutes) > 0:
+        bits.append(
+            "Poucas vozes independentes (pode haver concentração de ownership)."
+        )
+    return bits
+
+
+def _xref_for_claim(
+    claim_id: int, cross_references: list[CrossReferenceOut]
+) -> CrossReferenceOut | None:
+    for x in cross_references:
+        if x.claim_id == claim_id:
+            return x
+    return None
 
 
 def build_article_narrative_plain(
@@ -92,7 +168,7 @@ def build_article_narrative_plain(
     claims: list[ClaimAssessmentOut],
     cross_references: list[CrossReferenceOut],
 ) -> str:
-    """Resumo em prosa acessível — pelo menos um parágrafo bem humanizado."""
+    """Resumo por afirmativa: texto da claim + bullets F3/F4 (sem nota geral)."""
     paragraphs: list[str] = []
     if source and source.name:
         fonte_frase = f"do {source.name}"
@@ -110,124 +186,43 @@ def build_article_narrative_plain(
         bias_key = source.bias_label
     bias_txt = _BIAS_PLAIN.get(bias_key or "unknown", _BIAS_PLAIN["unknown"])
 
-    # §1 — parágrafo de abertura, linguagem do dia a dia
-    if claims:
-        lead = _clip(claims[0].claim.canonical_text, 160)
-        opening = (
-            f"Em termos simples: esta {tipo} {fonte_frase}, intitulada “{titulo}”, "
-            f"conta uma história centrada na ideia de que “{lead}”. "
-            f"A ferramenta leu o texto do começo ao fim, procurou o que dá para "
-            f"checar com calma e depois olhou se outras publicações dizem a mesma "
-            f"coisa ou discordam — tudo para ajudar quem não acompanha o jargão "
-            f"técnico a formar uma opinião mais segura."
-        )
+    if bias_key in (None, "unknown"):
+        bias_clause = f"Parcialidade do veículo: {bias_txt}."
     else:
-        opening = (
-            f"Em termos simples: esta {tipo} {fonte_frase}, intitulada “{titulo}”, "
-            f"foi lida pela ferramenta, mas quase não apareceu frase clara o "
-            f"bastante para ser checada (texto curto, genérico ou bem opinativo). "
-            f"Ainda assim vale ler o que segue com atenção: o tom da fonte e o "
-            f"que falta de base no texto também dizem bastante sobre a matéria."
-        )
-    if analysis:
-        opening += (
-            f" De cara, a leitura automática sugere que "
-            f"{_verdict_plain(analysis.preliminary_verdict)}, "
-            f"e o veículo costuma ter {bias_txt}."
-        )
-    else:
-        opening += f" O veículo costuma ter {bias_txt}."
-    paragraphs.append(opening)
+        bias_clause = f"O veículo costuma ter {bias_txt}."
+    paragraphs.append(
+        "Resumo por afirmativa\n"
+        f"Esta {tipo} {fonte_frase}, “{titulo}”. {bias_clause}"
+    )
 
-    # §2 — o que a matéria afirma, sem jargão
-    if claims:
-        weak = [c for c in claims if c.score_internal_support < 0.4]
-        strong = [
-            c
-            for c in claims
-            if c.score_internal_support >= 0.55 and c.score_distortion <= 0.45
-        ]
-        samples: list[str] = []
-        for c in claims[:3]:
-            txt = _clip(c.claim.canonical_text, 110)
-            samples.append(f"“{txt}” ({_claim_plain_note(c)})")
-        if len(samples) == 1:
-            p2 = f"O ponto principal que saltou do texto é {samples[0]}."
-        else:
-            p2 = (
-                "Entre as ideias que a matéria coloca na mesa estão "
-                + "; ".join(samples[:-1])
-                + f"; e também {samples[-1]}."
-            )
-        if weak and not strong:
-            p2 += (
-                " No geral, o texto pede que a gente acredite sem mostrar bem "
-                "de onde veio o número, a citação ou a prova — o que deixa a "
-                "história mais frágil para quem quer conferir."
-            )
-        elif strong and not weak:
-            p2 += (
-                " Em vários trechos há números, falas ou referências dentro "
-                "da própria matéria, o que ajuda a acompanhar o raciocínio "
-                "mesmo sem ser especialista."
-            )
-        elif weak and strong:
-            p2 += (
-                " Há um pouco de cada: partes com alguma base no texto e "
-                "outras que soam mais como opinião solta."
-            )
-        paragraphs.append(p2)
-
-    # §3 — o que outras fontes disseram
-    if cross_references:
-        supports = sum(
-            1 for x in cross_references for e in x.evidences if e.stance == "supports"
-        )
-        refutes = sum(
-            1 for x in cross_references for e in x.evidences if e.stance == "refutes"
-        )
-        p3 = (
-            f"Quando a mesma história foi procurada em outras matérias, "
-            f"surgiram {supports} sinal(is) na mesma direção e {refutes} "
-            f"que puxam para o lado contrário."
-        )
-        if refutes > supports:
-            p3 += (
-                " Ou seja: o que esta reportagem afirma não encontra um "
-                "coro tranquilo do lado de fora — há mais gente discordando "
-                "ou apontando outra versão."
-            )
-        elif supports > refutes and supports > 0:
-            p3 += (
-                " Há alguma coincidência com outras publicações, o que "
-                "aumenta a confiança na leitura, mas ainda não fecha o "
-                "caso como verdade absoluta."
-            )
-        else:
-            p3 += (
-                " O cenário externo ficou meio nebuloso: poucas matérias "
-                "úteis para confirmar ou desmentir com segurança."
-            )
-        paragraphs.append(p3)
-    else:
+    if not claims:
         paragraphs.append(
-            "Desta vez não deu para cruzar bem com outras reportagens "
-            "(poucos resultados, página bloqueada ou assunto muito "
-            "específico). Por isso a leitura depende sobretudo do que "
-            "está escrito nesta própria matéria."
+            "Não apareceu frase clara o bastante para ser checada "
+            "(texto curto, genérico ou bem opinativo)."
         )
+    else:
+        for i, c in enumerate(claims, start=1):
+            claim_txt = (c.claim.canonical_text if c.claim else "").strip() or (
+                "(sem texto)"
+            )
+            lines = [f"{i}. {claim_txt}"]
+            for note in _claim_f3_bullets(c):
+                lines.append(f"- {note}")
+            xref = _xref_for_claim(c.claim.id if c.claim else -1, cross_references)
+            for note in _claim_f4_bullets(xref):
+                lines.append(f"- {note}")
+            paragraphs.append("\n".join(lines))
 
-    # §4 — fechamento amigável
     closing = (
         "Nada disso substitui o seu julgamento nem uma checagem humana "
         "mais profunda: pense neste texto como um guia de leitura — "
-        "uma conversa franca sobre o que a matéria mostra, o que omite "
-        "e o que outras vozes dizem a respeito."
+        "o que cada afirmativa mostra, o que omite e o que outras vozes "
+        "dizem a respeito."
     )
     if analysis and analysis.source_partiality_note:
         note = analysis.source_partiality_note.strip()
         if note and len(note) < 200:
-            closing = f"{note} {closing}"
+            closing = f"{note}\n\n{closing}"
     paragraphs.append(closing)
 
     return "\n\n".join(paragraphs)
